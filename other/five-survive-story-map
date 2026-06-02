@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five Survive – Story Map</title>
+<link href="./five-survive-story-map_files/css2" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #c0392b;
+    --dark-red: #7b1a12;
+    --blood: #8b0000;
+    --off-white: #e8e0d0;
+    --dim: #a89880;
+    --bg: #0a0806;
+    --card: #110d0a;
+    --border: #2a1a14;
+  }
+
+  body {
+    background-color: var(--bg);
+    font-family: 'Crimson Text', serif;
+    color: var(--off-white);
+    min-height: 100vh;
+    padding: 40px 20px 60px;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.4;
+  }
+
+  /* Blood drip lines */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, transparent 10%, var(--blood) 20%, var(--blood) 21%, transparent 22%, transparent 40%, var(--blood) 45%, var(--blood) 47%, transparent 48%, transparent 65%, var(--blood) 72%, var(--blood) 73%, transparent 74%);
+    z-index: 99;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    animation: fadeIn 1.2s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 50px;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 2px;
+    background: var(--red);
+    margin: 18px auto 0;
+  }
+
+  .subtitle {
+    font-family: 'Crimson Text', serif;
+    font-style: italic;
+    color: var(--dim);
+    font-size: 1rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    animation: fadeIn 1.2s ease 0.2s both;
+  }
+
+  .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 8rem);
+    letter-spacing: 0.06em;
+    line-height: 0.9;
+    color: var(--off-white);
+    text-shadow: 0 0 60px rgba(192,57,43,0.3), 4px 4px 0 var(--dark-red);
+    animation: fadeIn 1s ease 0.1s both;
+  }
+
+  .title span {
+    color: var(--red);
+  }
+
+  .author {
+    font-style: italic;
+    color: var(--dim);
+    font-size: 1.05rem;
+    margin-top: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Story label */
+  .story-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.5em;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 36px;
+    opacity: 0.8;
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 28px 30px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn 1s ease both;
+  }
+
+  .card:nth-child(1) { animation-delay: 0.3s; }
+  .card:nth-child(2) { animation-delay: 0.45s; }
+  .card:nth-child(3) { animation-delay: 0.6s; }
+  .card:nth-child(4) { animation-delay: 0.75s; }
+
+  /* Red corner accent */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--red), var(--dark-red));
+  }
+
+  /* Subtle bg number */
+  .card::after {
+    content: attr(data-num);
+    position: absolute;
+    bottom: -10px; right: 10px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 7rem;
+    color: rgba(255,255,255,0.02);
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .card-tag {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.45em;
+    color: var(--red);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+    color: var(--off-white);
+    margin-bottom: 16px;
+    line-height: 1;
+  }
+
+  .card-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 16px;
+  }
+
+  .card-body {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: #c8bfb0;
+  }
+
+  .card-body strong {
+    color: var(--off-white);
+    font-weight: 600;
+  }
+
+  /* Theories list */
+  .theories-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .theories-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 1rem;
+    color: #c8bfb0;
+    line-height: 1.5;
+  }
+
+  .theories-list li::before {
+    content: '▸';
+    color: var(--red);
+    font-size: 0.8rem;
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Hook card spans full width */
+  .card.hook {
+    grid-column: 1 / -1;
+  }
+
+  .hook .card-body {
+    max-width: 720px;
+  }
+
+  /* Atmosphere tag row */
+  .atmo-tags {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .atmo-tag {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    color: var(--dim);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 44px;
+    font-style: italic;
+    color: var(--dim);
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    animation: fadeIn 1s ease 1s both;
+  }
+
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    .card.hook { grid-column: 1; }
+    .title { font-size: 4.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <p class="subtitle">Story Map</p>
+    <h1 class="title">FIVE <span>SURVIVE</span></h1>
+    <p class="author">by Holly Jackson</p>
+  </header>
+
+  <p class="story-label">— Eight Hours · Six Friends · Five Survive —</p>
+
+  <div class="grid">
+
+    <!-- Setting -->
+    <div class="card" data-num="01">
+      <span class="card-tag">01 · Where &amp; When</span>
+      <h2 class="card-title">Setting</h2>
+      <div class="card-divider"></div>
+      <p class="card-body">
+        The story takes place from <strong>April 9th to April 10th, 2022</strong>. It unfolds inside an <strong>RV</strong> stranded on a remote road in the <strong>USA</strong>, as the group drives from Philadelphia to Gulf Shores for spring break.
+      </p>
+      <div class="atmo-tags">
+        <span class="atmo-tag">Mysterious</span>
+        <span class="atmo-tag">Dark</span>
+        <span class="atmo-tag">Unpredictable</span>
+      </div>
+    </div>
+
+    <!-- Protagonist -->
+    <div class="card" data-num="02">
+      <span class="card-tag">02 · Main Character</span>
+      <h2 class="card-title">Protagonist</h2>
+      <div class="card-divider"></div>
+      <p class="card-body">
+        The main character is <strong>Red Kenny</strong>. She is on a road trip with five friends: her best friend <strong>Maddy</strong>, Maddy's brother <strong>Oliver</strong>, Oliver's girlfriend <strong>Reyna</strong>, <strong>Simon</strong>, and <strong>Arthur</strong>. At the beginning it seems like a typical teen vacation.
+      </p>
+    </div>
+
+    <!-- Hook -->
+    <div class="card hook" data-num="03">
+      <span class="card-tag">03 · Main Conflict</span>
+      <h2 class="card-title">Hook</h2>
+      <div class="card-divider"></div>
+      <p class="card-body">
+        The main conflict starts when the RV <strong>suddenly breaks down in the middle of nowhere</strong>. Soon the group realizes they are being watched by a <strong>sniper</strong> who wants one of them to tell him a secret. The tension makes you keep reading — you want to know what happens next, <strong>who the sniper is</strong>, and who among them is hiding a secret.
+      </p>
+    </div>
+
+    <!-- Theories -->
+    <div class="card" style="grid-column: 1 / -1;" data-num="04">
+      <span class="card-tag">04 · Predictions</span>
+      <h2 class="card-title">Theories</h2>
+      <div class="card-divider"></div>
+      <ul class="theories-list">
+        <li>Someone will die before the night is over.</li>
+        <li>Arthur and Red will become a couple.</li>
+        <li>The friends will turn against each other.</li>
+        <li>They will find a way out — call the police or escape.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <p class="footer">"Not all of them will survive the night…"</p>
+
+</div>
+
+
+</body></html>
