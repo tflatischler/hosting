@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Hail Mary — Andy Weir</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --star-white: #E8E6E1;
+    --deep-space: #08090C;
+    --astrophage-amber: #E8A830;
+    --rocky-copper: #C47832;
+    --eridian-blue: #3A6B9F;
+    --tau-ceti: #D4C9A8;
+    --hull-grey: #1A1D24;
+    --text-dim: #8A8D94;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    background: var(--deep-space);
+    color: var(--star-white);
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  /* ─── Starfield background ─── */
+  .starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .starfield canvas { width: 100%; height: 100%; }
+
+  /* ─── Layout ─── */
+  .page { position: relative; z-index: 1; }
+
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    backdrop-filter: blur(16px);
+    background: rgba(8,9,12,0.7);
+    border-bottom: 1px solid rgba(232,166,48,0.08);
+  }
+  nav .section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  nav .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--astrophage-amber);
+  }
+  nav .nav-links {
+    display: flex; gap: 2rem; list-style: none;
+  }
+  nav .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    transition: color 0.3s;
+  }
+  nav .nav-links a:hover { color: var(--astrophage-amber); }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding-top: 80px;
+    position: relative;
+  }
+  .hero-inner { max-width: 800px; }
+
+  .hero .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--astrophage-amber);
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 1s 0.3s ease forwards;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--star-white);
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 1s 0.5s ease forwards;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--astrophage-amber);
+  }
+
+  .hero .subtitle {
+    font-size: 1.15rem;
+    font-weight: 300;
+    color: var(--text-dim);
+    max-width: 520px;
+    margin: 0 auto 2.5rem;
+    opacity: 0;
+    animation: fadeUp 1s 0.7s ease forwards;
+  }
+
+  .hero .cta-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 1s 0.9s ease forwards;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 2rem;
+    border-radius: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s;
+  }
+  .btn-primary {
+    background: var(--astrophage-amber);
+    color: var(--deep-space);
+  }
+  .btn-primary:hover { background: #f0b640; transform: translateY(-2px); }
+  .btn-secondary {
+    background: transparent;
+    color: var(--star-white);
+    border: 1px solid rgba(232,230,225,0.2);
+  }
+  .btn-secondary:hover { border-color: var(--astrophage-amber); color: var(--astrophage-amber); }
+
+  /* ─── DIVIDER: astrophage particle line ─── */
+  .astrophage-line {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--astrophage-amber), transparent);
+    opacity: 0.3;
+    position: relative;
+  }
+  .astrophage-line::after {
+    content: '';
+    position: absolute;
+    width: 6px; height: 6px;
+    background: var(--astrophage-amber);
+    border-radius: 50%;
+    top: -2.5px;
+    left: 50%;
+    box-shadow: 0 0 12px var(--astrophage-amber);
+  }
+
+  /* ─── SYNOPSIS ─── */
+  .synopsis {
+    padding: 7rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 4rem;
+    align-items: center;
+  }
+  .synopsis-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--astrophage-amber);
+    margin-bottom: 1.5rem;
+  }
+  .synopsis h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+  }
+  .synopsis p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+  }
+  .transmission-card {
+    background: var(--hull-grey);
+    border: 1px solid rgba(232,166,48,0.1);
+    border-radius: 6px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .transmission-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--astrophage-amber), var(--eridian-blue));
+  }
+  .transmission-card .mono-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  .transmission-card blockquote {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.5rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--tau-ceti);
+    border: none;
+  }
+
+  /* ─── CHARACTERS ─── */
+  .characters {
+    padding: 5rem 2rem 7rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .characters .synopsis-label { margin-bottom: 2rem; }
+  .char-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  .char-card {
+    background: var(--hull-grey);
+    border: 1px solid rgba(232,230,225,0.06);
+    border-radius: 6px;
+    padding: 2rem;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .char-card:hover {
+    border-color: rgba(232,166,48,0.25);
+    transform: translateY(-3px);
+  }
+  .char-card .char-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 1.2rem;
+  }
+  .char-card h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    margin-bottom: 0.3rem;
+  }
+  .char-card .char-role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--astrophage-amber);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+  .char-card p {
+    font-size: 0.9rem;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ─── THEMES ─── */
+  .themes {
+    padding: 5rem 2rem 7rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .themes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 3rem;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .themes-header h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 400;
+  }
+  .themes-header p {
+    max-width: 400px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 300;
+    text-align: right;
+  }
+  .theme-items { display: flex; flex-direction: column; gap: 1px; }
+  .theme-item {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: 2rem;
+    padding: 1.8rem 0;
+    border-bottom: 1px solid rgba(232,230,225,0.06);
+    align-items: start;
+  }
+  .theme-item .theme-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--astrophage-amber);
+    padding-top: 0.2rem;
+  }
+  .theme-item h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    margin-bottom: 0.5rem;
+  }
+  .theme-item p {
+    font-size: 0.9rem;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ─── FILM SECTION ─── */
+  .film {
+    padding: 5rem 2rem 7rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .film-card {
+    background: linear-gradient(135deg, var(--hull-grey) 0%, rgba(58,107,159,0.12) 100%);
+    border: 1px solid rgba(58,107,159,0.15);
+    border-radius: 8px;
+    padding: 3.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  .film-info .synopsis-label { color: var(--eridian-blue); }
+  .film-info h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 400;
+    margin-bottom: 1rem;
+  }
+  .film-info p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+  }
+  .film-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .film-stat {
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(8,9,12,0.5);
+    border-radius: 6px;
+    border: 1px solid rgba(232,230,225,0.04);
+  }
+  .film-stat .stat-val {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.2rem;
+    color: var(--astrophage-amber);
+    line-height: 1.2;
+  }
+  .film-stat .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 0.4rem;
+  }
+
+  /* ─── PRAISE ─── */
+  .praise {
+    padding: 5rem 2rem 7rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .praise .synopsis-label { text-align: center; margin-bottom: 2.5rem; }
+  .praise-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    text-align: left;
+  }
+  .praise-card {
+    background: var(--hull-grey);
+    border: 1px solid rgba(232,230,225,0.05);
+    border-radius: 6px;
+    padding: 2rem;
+  }
+  .praise-card p {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--tau-ceti);
+    margin-bottom: 1rem;
+  }
+  .praise-card .attribution {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ─── FOOTER CTA ─── */
+  .footer-cta {
+    padding: 6rem 2rem 4rem;
+    text-align: center;
+  }
+  .footer-cta h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 400;
+    margin-bottom: 1rem;
+  }
+  .footer-cta p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    font-weight: 300;
+    margin-bottom: 2rem;
+  }
+  .footer-cta .cta-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    padding: 3rem 2rem;
+    border-top: 1px solid rgba(232,230,225,0.06);
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  footer p {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .hero .eyebrow, .hero h1, .hero .subtitle, .hero .cta-group {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .synopsis { grid-template-columns: 1fr; gap: 2.5rem; }
+    .film-card { grid-template-columns: 1fr; }
+    nav .nav-links { gap: 1rem; }
+    nav .nav-links a { font-size: 0.75rem; }
+    .themes-header { flex-direction: column; align-items: flex-start; }
+    .themes-header p { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Starfield Background -->
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <!-- NAV -->
+  <nav>
+    <div class="section">
+      <div class="logo">PHM · 2021</div>
+      <ul class="nav-links">
+        <li><a href="#synopsis">Synopsis</a></li>
+        <li><a href="#characters">Characters</a></li>
+        <li><a href="#themes">Themes</a></li>
+        <li><a href="#film">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">A novel by Andy Weir · Film Tie-In Edition</div>
+      <h1>Project<br><em>Hail Mary</em></h1>
+      <p class="subtitle">11.9 light-years from home. One last-chance mission. An impossible friendship across the stars.</p>
+      <div class="cta-group">
+        <a href="#synopsis" class="btn btn-primary">Explore the story</a>
+        <a href="#film" class="btn btn-secondary">See the film →</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- SYNOPSIS -->
+  <section class="synopsis reveal" id="synopsis">
+    <div>
+      <div class="synopsis-label">The Mission</div>
+      <h2>The sun is dying. Earth's last hope is one reluctant astronaut.</h2>
+      <p>Dr. Ryland Grace wakes aboard the starship Hail Mary with no memory of who he is or why he's there. His two crewmates are dead. And he's 11.9 light-years from home.</p>
+      <p>Piece by piece, he remembers: the Astrophage, an alien microorganism feeding on Earth's sun, is driving the planet toward extinction. Ryland's mission — a one-way trip to Tau Ceti — is humanity's final gamble.</p>
+      <p>But when he discovers he's not alone in the void, everything changes. An alien from the 40 Eridani system, whom he calls Rocky, faces the same threat. Together, they forge an extraordinary partnership — part science, part trust, part friendship — to save both their worlds.</p>
+    </div>
+    <div class="transmission-card">
+      <div class="mono-label">♦ Transmission · Ryland Grace</div>
+      <blockquote>"I'm not an astronaut. I'm a junior high school science teacher."</blockquote>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- CHARACTERS -->
+  <section class="characters reveal" id="characters">
+    <div class="synopsis-label">Key Characters</div>
+    <div class="char-grid">
+      <div class="char-card">
+        <div class="char-icon" style="background: rgba(232,166,48,0.12); color: var(--astrophage-amber);">🧑‍🔬</div>
+        <h3>Dr. Ryland Grace</h3>
+        <div class="char-role">Reluctant Astronaut</div>
+        <p>A molecular biologist turned middle school science teacher, thrust into a solo suicide mission to save Earth. Armed with wit, tenacity, and an obsession with the scientific method.</p>
+      </div>
+      <div class="char-card">
+        <div class="char-icon" style="background: rgba(196,120,50,0.12); color: var(--rocky-copper);">🪨</div>
+        <h3>Rocky</h3>
+        <div class="char-role">Eridian Engineer</div>
+        <p>A spider-like alien from 40 Eridani, communicating through musical tones. Brilliant engineer whose species faces the same solar crisis. Ryland's unlikely best friend across the stars.</p>
+      </div>
+      <div class="char-card">
+        <div class="char-icon" style="background: rgba(58,107,159,0.12); color: var(--eridian-blue);">🌍</div>
+        <h3>Eva Stratt</h3>
+        <div class="char-role">Project Leader</div>
+        <p>The formidable head of Hail Mary — given absolute authority by every nation on Earth. She'll do whatever it takes, no matter the moral cost, to save humanity from extinction.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- THEMES -->
+  <section class="themes reveal" id="themes">
+    <div class="themes-header">
+      <div>
+        <div class="synopsis-label">Core Themes</div>
+        <h2>What the story explores</h2>
+      </div>
+      <p>Hard science and deep humanity, woven together with humor and hope.</p>
+    </div>
+    <div class="theme-items">
+      <div class="theme-item">
+        <div class="theme-num">I</div>
+        <div>
+          <h3>The Scientific Method as Survival</h3>
+          <p>At its heart, this is a love letter to science — observation, hypothesis, experiment, repeat. Ryland solves extinction-level problems the way he'd teach a classroom: one careful step at a time.</p>
+        </div>
+      </div>
+      <div class="theme-item">
+        <div class="theme-num">II</div>
+        <div>
+          <h3>Friendship Without Borders</h3>
+          <p>Ryland and Rocky share no language, no biology, no planet — yet they build one of fiction's most moving friendships. Communication and trust transcend every possible barrier between them.</p>
+        </div>
+      </div>
+      <div class="theme-item">
+        <div class="theme-num">III</div>
+        <div>
+          <h3>Sacrifice and Moral Complexity</h3>
+          <p>The novel never shies from hard questions. Stratt sends people on suicide missions. Grace was launched against his will. When does the greater good justify taking away someone's choice?</p>
+        </div>
+      </div>
+      <div class="theme-item">
+        <div class="theme-num">IV</div>
+        <div>
+          <h3>Optimism in the Face of Doom</h3>
+          <p>Against apocalyptic odds, the story insists on hope — not through naivety, but through the stubborn, iterative, collaborative work of solving problems together.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- FILM -->
+  <section class="film reveal" id="film">
+    <div class="film-card">
+      <div class="film-info">
+        <div class="synopsis-label">Now a Major Motion Picture</div>
+        <h2>The Film Tie-In</h2>
+        <p>Directed by Phil Lord and Christopher Miller, the 2026 film stars Ryan Gosling as Ryland Grace, Sandra Hüller as Eva Stratt, and James Ortiz as Rocky. It became Amazon MGM's highest-grossing release ever, earning an opening weekend of $80.6 million domestically.</p>
+        <a href="#" class="btn btn-primary" style="margin-top: 0.5rem;">Get the film tie-in edition</a>
+      </div>
+      <div class="film-stats">
+        <div class="film-stat">
+          <div class="stat-val">94%</div>
+          <div class="stat-label">Critics Score</div>
+        </div>
+        <div class="film-stat">
+          <div class="stat-val">A</div>
+          <div class="stat-label">CinemaScore</div>
+        </div>
+        <div class="film-stat">
+          <div class="stat-val">$140.9M</div>
+          <div class="stat-label">Global Opening</div>
+        </div>
+        <div class="film-stat">
+          <div class="stat-val">2h 36m</div>
+          <div class="stat-label">Runtime</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- PRAISE -->
+  <section class="praise reveal">
+    <div class="synopsis-label">Praise for the Novel</div>
+    <div class="praise-grid">
+      <div class="praise-card">
+        <p>An irresistible, propulsive interstellar adventure — from the opening mystery to the final, tear-inducing page.</p>
+        <div class="attribution">— The New York Times</div>
+      </div>
+      <div class="praise-card">
+        <p>A thrilling tale of redemption, discovery, and brilliant speculative science fiction.</p>
+        <div class="attribution">— USA Today</div>
+      </div>
+      <div class="praise-card">
+        <p>Like going on a field trip to outer space with the best science teacher you've ever had — and your assignment is saving the world.</p>
+        <div class="attribution">— Jasmine Guillory</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER CTA -->
+  <section class="footer-cta reveal">
+    <h2>Begin the mission.</h2>
+    <p>Available now — the film tie-in edition with exclusive behind-the-scenes content.</p>
+    <div class="cta-group">
+      <a href="#" class="btn btn-primary">Order the Book</a>
+      <a href="#" class="btn btn-secondary">Read a Sample</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>Project Hail Mary © Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page · Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+// ─── Starfield ───
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let w, h, stars = [];
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  function init(){
+    resize();
+    stars = Array.from({length: 220}, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.4 + 0.3,
+      a: Math.random() * 0.7 + 0.3,
+      s: Math.random() * 0.0008 + 0.0002
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    stars.forEach(s => {
+      const flicker = 0.5 + 0.5 * Math.sin(t * s.s * 6);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(232,230,225,${s.a * flicker})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  init();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(draw);
+})();
+
+// ─── Scroll Reveal ───
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
