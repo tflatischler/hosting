@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Hail Mary — Andy Weir</title>
+<link rel="stylesheet" href="phm-styles.css">
+<style>
+  .hero {
+    min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; text-align: center; padding-top: 80px;
+  }
+  .hero-inner { max-width: 800px; padding: 0 2rem; }
+  .hero .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.35em;
+    text-transform: uppercase; color: var(--astrophage-amber);
+    margin-bottom: 2rem; opacity: 0;
+    animation: fadeUp 1s 0.3s ease forwards;
+  }
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 400; line-height: 1.05; letter-spacing: -0.02em;
+    margin-bottom: 1.5rem; opacity: 0;
+    animation: fadeUp 1s 0.5s ease forwards;
+  }
+  .hero h1 em { font-style: italic; color: var(--astrophage-amber); }
+  .hero .subtitle {
+    font-size: 1.15rem; font-weight: 300; color: var(--text-dim);
+    max-width: 520px; margin: 0 auto 2.5rem; opacity: 0;
+    animation: fadeUp 1s 0.7s ease forwards;
+  }
+  .hero .cta-group {
+    display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+    opacity: 0; animation: fadeUp 1s 0.9s ease forwards;
+  }
+  .synopsis {
+    padding: 7rem 2rem; max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1.4fr;
+    gap: 4rem; align-items: center;
+  }
+  .synopsis h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 400; line-height: 1.15; margin-bottom: 1.5rem;
+  }
+  .synopsis p {
+    color: var(--text-dim); font-size: 1rem; font-weight: 300;
+    line-height: 1.8; margin-bottom: 1rem;
+  }
+  .praise { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+  .praise .label { text-align: center; margin-bottom: 2.5rem; }
+  .footer-cta {
+    padding: 6rem 2rem 4rem; text-align: center;
+  }
+  .footer-cta h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 400; margin-bottom: 1rem;
+  }
+  .footer-cta p {
+    color: var(--text-dim); font-size: 1rem;
+    font-weight: 300; margin-bottom: 2rem;
+  }
+  @media (max-width: 768px) {
+    .synopsis { grid-template-columns: 1fr; gap: 2.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">PHM · 2021</a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Synopsis</a></li>
+        <li><a href="characters.html">Characters</a></li>
+        <li><a href="themes.html">Themes</a></li>
+        <li><a href="storymap.html">Storymap</a></li>
+        <li><a href="film.html">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">A novel by Andy Weir · Film Tie-In Edition</div>
+      <h1>Project<br><em>Hail Mary</em></h1>
+      <p class="subtitle">11.9 light-years from home. One last-chance mission. An impossible friendship across the stars.</p>
+      <div class="cta-group">
+        <a href="#synopsis" class="btn btn-primary">Explore the story</a>
+        <a href="film.html" class="btn btn-secondary">See the film &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <section class="synopsis reveal" id="synopsis">
+    <div>
+      <div class="label">The Mission</div>
+      <h2>The sun is fading. Earth's only hope is one ordinary man.</h2>
+      <p>Dr Ryland Grace wakes up aboard the spaceship Hail Mary with no idea who he is or how he got there. He is completely alone — and nearly twelve light-years from home.</p>
+      <p>As his memories slowly return, he begins to understand the terrible truth: a mysterious organism called the Astrophage is draining the sun's energy, and the Earth is running out of time. Ryland has been sent on a desperate mission to find a solution before it is too late.</p>
+      <p>What he discovers along the way — and who he meets — will change everything he thought he knew about science, courage, and what it truly means to be human.</p>
+    </div>
+    <div class="transmission-card">
+      <div class="mono-label">&#9670; Transmission · Ryland Grace</div>
+      <blockquote>"I'm not an astronaut. I'm a science teacher."</blockquote>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <section class="praise reveal">
+    <div class="label">Praise for the Novel</div>
+    <div class="praise-grid">
+      <div class="praise-card">
+        <p>A gripping interstellar adventure that keeps you turning pages from the very first chapter to the unforgettable ending.</p>
+        <div class="attribution">— The New York Times</div>
+      </div>
+      <div class="praise-card">
+        <p>A brilliant mix of discovery, redemption, and wonderfully inventive science fiction.</p>
+        <div class="attribution">— USA Today</div>
+      </div>
+      <div class="praise-card">
+        <p>Reading this novel feels like a field trip to outer space with the most inspiring science teacher you have ever had.</p>
+        <div class="attribution">— Jasmine Guillory</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <section class="footer-cta reveal">
+    <h2>Begin the mission.</h2>
+    <p>Available now — the film tie-in edition with exclusive behind-the-scenes content.</p>
+    <a href="https://www.thalia.at/shop/home/artikeldetails/A1076703857" target="_blank" rel="noopener" class="btn btn-primary">Order the Book</a>
+  </section>
+
+  <footer>
+    <p>Project Hail Mary &copy; Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page · Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const c=document.getElementById('stars'),x=c.getContext('2d');let w,h,s=[];
+  function r(){w=c.width=innerWidth;h=c.height=innerHeight}
+  function i(){r();s=Array.from({length:220},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,a:Math.random()*.7+.3,s:Math.random()*.0008+.0002}))}
+  function d(t){x.clearRect(0,0,w,h);s.forEach(p=>{const f=.5+.5*Math.sin(t*p.s*6);x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=`rgba(232,230,225,${p.a*f})`;x.fill()});requestAnimationFrame(d)}
+  i();addEventListener('resize',r);requestAnimationFrame(d)
+})();
+const o=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>o.observe(el));
+</script>
+</body>
+</html>

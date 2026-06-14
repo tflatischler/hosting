@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Themes — Project Hail Mary</title>
+<link rel="stylesheet" href="phm-styles.css">
+</head>
+<body>
+
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">PHM · 2021</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Synopsis</a></li>
+        <li><a href="characters.html">Characters</a></li>
+        <li><a href="themes.html" class="active">Themes</a></li>
+        <li><a href="storymap.html">Storymap</a></li>
+        <li><a href="film.html">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="eyebrow">Project Hail Mary</div>
+    <h1>Themes</h1>
+    <p class="lead">Rigorous science and deep humanity, brought together with humour and warmth.</p>
+  </div>
+
+  <div class="astrophage-line"></div>
+
+  <section class="theme-detail reveal">
+
+    <div class="theme-detail-block">
+      <div class="theme-sub">Theme I</div>
+      <h2>Science as a Way of Thinking</h2>
+      <p>More than anything else, Project Hail Mary is a celebration of the scientific method. Ryland Grace does not possess any magical abilities or special powers. What he does have is a systematic way of approaching problems: observe, hypothesise, experiment, and learn from the results.</p>
+      <p>The novel shows us that science is not just a collection of facts to be memorised. It is a way of thinking — a tool for making sense of the unknown. Whether Ryland is working out how an alien organism behaves or trying to communicate with a being from another star system, he always returns to the same approach: gather evidence, form a theory, and test it carefully.</p>
+      <p>Andy Weir makes this process genuinely exciting. The reader follows Ryland through each step of his reasoning, and there is real satisfaction in watching him piece together solutions from limited information. It is a powerful reminder that curiosity and careful thinking can take us further than we ever imagined.</p>
+    </div>
+
+    <div class="theme-detail-block">
+      <div class="theme-sub">Theme II</div>
+      <h2>Friendship Beyond All Differences</h2>
+      <p>At its emotional core, this novel is about connection. Ryland and Rocky could not be more different — they come from separate star systems, they have entirely different bodies, they do not share a language, and they perceive the world in completely different ways.</p>
+      <p>And yet, through patience, effort, and a shared sense of purpose, they build one of the most touching friendships in recent fiction. The process of learning to communicate is both funny and moving, as Ryland and Rocky gradually develop a way to understand each other that goes beyond mere words.</p>
+      <p>Their friendship asks a powerful question: if two beings with nothing in common can find trust, respect, and genuine affection, what excuse do the rest of us have? It is a deeply optimistic idea, presented without sentimentality — the bond between them feels earned, real, and deeply human, even though one of them is not human at all.</p>
+    </div>
+
+    <div class="theme-detail-block">
+      <div class="theme-sub">Theme III</div>
+      <h2>Sacrifice and Difficult Choices</h2>
+      <p>When the survival of an entire species hangs in the balance, how far is it acceptable to go? The novel examines this question with honesty and nuance, refusing to offer simple answers.</p>
+      <p>Through the character of Eva Stratt, the story explores the moral weight of leadership under extreme pressure. Decisions must be made quickly, resources are limited, and the stakes could not be higher. Some of these decisions involve forcing people to do things they would never choose for themselves — and the novel takes the time to show us the human cost of each one.</p>
+      <p>At the same time, the story also explores personal sacrifice — the question of what an individual is willing to give up for a cause greater than themselves. This theme runs through the entire book, from the smallest choices to the largest, and it is one of the reasons the story stays with you long after you finish reading.</p>
+    </div>
+
+    <div class="theme-detail-block">
+      <div class="theme-sub">Theme IV</div>
+      <h2>Hope Against the Odds</h2>
+      <p>Project Hail Mary is, fundamentally, a hopeful book. This might seem surprising, given that the premise involves the potential extinction of life on Earth, but Andy Weir has a gift for finding light in the darkest situations.</p>
+      <p>The hope in this novel is not naive or unrealistic. It is grounded in effort, in collaboration, and in a stubborn refusal to give up — even when the odds seem impossible. Ryland does not succeed because he is lucky; he succeeds because he keeps trying, keeps thinking, and keeps reaching out to others for help.</p>
+      <p>In a world that often feels overwhelming, there is something deeply reassuring about a story that says: if we work together, if we stay curious, if we refuse to stop trying, extraordinary things are possible. It is a message that resonates far beyond the pages of the book.</p>
+    </div>
+
+    <div class="theme-detail-block">
+      <div class="theme-sub">Theme V</div>
+      <h2>International Cooperation</h2>
+      <p>The threat in Project Hail Mary does not respect national borders. It affects every country, every continent, every person on the planet equally. And the response, fittingly, requires the entire world to work together.</p>
+      <p>The novel presents a vision of global cooperation that feels both inspiring and realistic. Scientists from different countries contribute their expertise, governments set aside their differences, and ordinary people step up when they are needed. It is not without tension — there are disagreements, political pressures, and competing priorities — but the overall message is clear: the biggest challenges we face require us to look beyond our own interests and collaborate.</p>
+    </div>
+
+  </section>
+
+  <footer>
+    <p>Project Hail Mary &copy; Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page · Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){const c=document.getElementById('stars'),x=c.getContext('2d');let w,h,s=[];function r(){w=c.width=innerWidth;h=c.height=innerHeight}function i(){r();s=Array.from({length:220},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,a:Math.random()*.7+.3,s:Math.random()*.0008+.0002}))}function d(t){x.clearRect(0,0,w,h);s.forEach(p=>{const f=.5+.5*Math.sin(t*p.s*6);x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=`rgba(232,230,225,${p.a*f})`;x.fill()});requestAnimationFrame(d)}i();addEventListener('resize',r);requestAnimationFrame(d)})();
+const o=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>o.observe(el));
+</script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Film — Project Hail Mary</title>
+<link rel="stylesheet" href="phm-styles.css">
+<style>
+  /* ─── Hero image ─── */
+  .film-hero {
+    padding: 0 2rem;
+    max-width: 1100px; margin: -1rem auto 0;
+  }
+  .film-hero img {
+    width: 100%; border-radius: 8px;
+    border: 1px solid rgba(232,230,225,0.06);
+    display: block;
+  }
+
+  /* ─── Trailer ─── */
+  .trailer-section {
+    padding: 5rem 2rem; max-width: 1100px; margin: 0 auto;
+  }
+  .trailer-wrap {
+    position: relative; padding-bottom: 56.25%;
+    height: 0; overflow: hidden; border-radius: 8px;
+    border: 1px solid rgba(232,166,48,0.12);
+  }
+  .trailer-wrap iframe {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%; border: 0;
+  }
+
+  /* ─── Film info grid ─── */
+  .film-info-section {
+    padding: 5rem 2rem; max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4rem; align-items: start;
+  }
+  .film-text h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 400; margin-bottom: 1.2rem;
+  }
+  .film-text p {
+    color: var(--text-dim); font-size: 1rem;
+    font-weight: 300; line-height: 1.8;
+    margin-bottom: 1rem;
+  }
+  .film-stats {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .film-stat {
+    text-align: center; padding: 1.5rem;
+    background: var(--hull-grey);
+    border-radius: 6px;
+    border: 1px solid rgba(232,230,225,0.04);
+  }
+  .film-stat .stat-val {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.2rem; color: var(--astrophage-amber);
+    line-height: 1.2;
+  }
+  .film-stat .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 0.2em;
+    color: var(--text-dim); text-transform: uppercase;
+    margin-top: 0.4rem;
+  }
+
+  /* ─── Cast ─── */
+  .cast-section {
+    padding: 3rem 2rem 5rem; max-width: 1100px; margin: 0 auto;
+  }
+  .cast-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem; margin-top: 2rem;
+  }
+  .cast-card {
+    background: var(--hull-grey);
+    border: 1px solid rgba(232,230,225,0.06);
+    border-radius: 6px; padding: 1.5rem;
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+  .cast-card:hover { border-color: rgba(232,166,48,0.2); }
+  .cast-card .cast-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.15rem; font-weight: 400;
+    margin-bottom: 0.3rem;
+  }
+  .cast-card .cast-role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 0.15em;
+    color: var(--astrophage-amber); text-transform: uppercase;
+  }
+
+  /* ─── GIF section ─── */
+  .gif-section {
+    padding: 3rem 2rem 5rem; max-width: 800px; margin: 0 auto;
+    text-align: center;
+  }
+  .gif-section img {
+    max-width: 100%; border-radius: 8px;
+    border: 1px solid rgba(232,166,48,0.1);
+  }
+  .gif-caption {
+    margin-top: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.15em;
+    color: var(--text-dim); text-transform: uppercase;
+  }
+
+  /* ─── Poster wall ─── */
+  .poster-section {
+    padding: 5rem 2rem; max-width: 1100px; margin: 0 auto;
+  }
+  .poster-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem; margin-top: 2rem;
+  }
+  .poster-grid a {
+    display: block; border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(232,230,225,0.06);
+    transition: transform 0.3s, border-color 0.3s;
+  }
+  .poster-grid a:hover {
+    transform: translateY(-4px);
+    border-color: rgba(232,166,48,0.25);
+  }
+  .poster-grid a.poster-featured {
+    grid-row: span 1;
+    border-color: rgba(232,166,48,0.15);
+    box-shadow: 0 0 24px rgba(232,166,48,0.08);
+  }
+  .poster-grid img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+
+  /* ─── CTA ─── */
+  .film-cta {
+    padding: 5rem 2rem 4rem; text-align: center;
+  }
+  .film-cta h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 400; margin-bottom: 1rem;
+  }
+  .film-cta p {
+    color: var(--text-dim); font-size: 1rem;
+    font-weight: 300; margin-bottom: 2rem;
+  }
+
+  @media (max-width: 768px) {
+    .film-info-section { grid-template-columns: 1fr; gap: 2.5rem; }
+    .poster-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 480px) {
+    .poster-grid { grid-template-columns: 1fr; max-width: 360px; margin: 2rem auto 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">PHM · 2021</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Synopsis</a></li>
+        <li><a href="characters.html">Characters</a></li>
+        <li><a href="themes.html">Themes</a></li>
+        <li><a href="storymap.html">Storymap</a></li>
+        <li><a href="film.html" class="active">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="eyebrow">Project Hail Mary &middot; 2026</div>
+    <h1>The Film</h1>
+    <p class="lead">Directed by Phil Lord &amp; Christopher Miller. Starring Ryan Gosling.</p>
+  </div>
+
+  <!-- Hero image -->
+  <div class="film-hero reveal">
+    <img src="https://www.rogerebert.com/wp-content/uploads/2026/03/projecthailmaryre-jpg.webp" alt="Ryan Gosling as Ryland Grace aboard the Hail Mary spacecraft" loading="lazy">
+  </div>
+
+  <div class="astrophage-line" style="margin-top: 4rem;"></div>
+
+  <!-- Trailer -->
+  <section class="trailer-section reveal">
+    <div class="label" style="text-align: center; margin-bottom: 2rem;">Official Trailer</div>
+    <div class="trailer-wrap">
+      <iframe src="https://www.youtube-nocookie.com/embed/5VYsnngkS_U" title="Project Hail Mary — Official Trailer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- Film info + stats -->
+  <section class="film-info-section reveal">
+    <div class="film-text">
+      <div class="label">About the Film</div>
+      <h2>From page to screen</h2>
+      <p>The 2026 film adaptation brings Andy Weir's beloved novel to life with stunning practical effects and a deeply human performance from Ryan Gosling. Directors Phil Lord and Christopher Miller — known for their inventive approach to blockbuster filmmaking — chose to build the entire Hail Mary spacecraft as a physical set, avoiding green screens wherever possible.</p>
+      <p>The result is a film that feels remarkably grounded despite its interstellar setting. Gosling brings warmth, humour, and vulnerability to the role of Ryland Grace, whilst Sandra H&uuml;ller delivers a commanding turn as the formidable Eva Stratt. The portrayal of Rocky, brought to life by James Ortiz, has become one of the most beloved characters in recent cinema.</p>
+      <p>The film was shot entirely in England, with principal photography running from June to October 2024 at Shepperton Studios, South Parade Pier in Portsmouth, and the Mullard Radio Astronomy Observatory near Cambridge.</p>
+    </div>
+    <div class="film-stats">
+      <div class="film-stat">
+        <div class="stat-val">94%</div>
+        <div class="stat-label">Critics Score</div>
+      </div>
+      <div class="film-stat">
+        <div class="stat-val">A</div>
+        <div class="stat-label">CinemaScore</div>
+      </div>
+      <div class="film-stat">
+        <div class="stat-val">$140.9M</div>
+        <div class="stat-label">Global Opening</div>
+      </div>
+      <div class="film-stat">
+        <div class="stat-val">2h 36m</div>
+        <div class="stat-label">Runtime</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- Cast -->
+  <section class="cast-section reveal">
+    <div class="label">Cast &amp; Crew</div>
+    <div class="cast-grid">
+      <div class="cast-card">
+        <div class="cast-name">Ryan Gosling</div>
+        <div class="cast-role">Ryland Grace</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-name">Sandra H&uuml;ller</div>
+        <div class="cast-role">Eva Stratt</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-name">James Ortiz</div>
+        <div class="cast-role">Rocky</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-name">Lionel Boyce</div>
+        <div class="cast-role">Carl</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-name">Ken Leung</div>
+        <div class="cast-role">Yao</div>
+      </div>
+      <div class="cast-card">
+        <div class="cast-name">Phil Lord &amp; Chris Miller</div>
+        <div class="cast-role">Directors</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- Rocky GIF -->
+  <section class="gif-section reveal">
+    <div class="label">Fan Favourite</div>
+    <img src="https://imgs.search.brave.com/wGzu-OGqsi61mdDjGdU12sZbcFNGOCTeechLq9DYxzk/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWFn/ZXMuc3F1YXJlc3Bh/Y2UtY2RuLmNvbS9j/b250ZW50L3YxLzYw/Zjg2NDRmNDgxMzg3/MjRhOWI0NDE3NS83/YjQ1NzFmMi03YjY1/LTRmZjEtOWNhYy0z/MzE3ODY2ZjA0ZmQv/cm9ja3l0aGVhbGll/bl9wcm9qZWN0aGFp/bG1hcnlfbW92aWU" alt="Rocky the Eridian alien from Project Hail Mary" loading="lazy">
+    <div class="gif-caption">Rocky, as seen in the film</div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- Poster wall -->
+  <section class="poster-section reveal">
+    <div class="label">Poster Gallery</div>
+    <div class="poster-grid">
+      <a href="images/project_hail_mary.jpg" target="_blank" rel="noopener">
+        <img src="images/project_hail_mary.jpg" alt="Project Hail Mary — theatrical poster" loading="lazy">
+      </a>
+      <a href="images/project_hail_mary_ver4_xlg.jpg" target="_blank" rel="noopener" class="poster-featured">
+        <img src="images/project_hail_mary_ver4_xlg.jpg" alt="Project Hail Mary — character poster (featured)" loading="lazy">
+      </a>
+      <a href="images/project_hail_mary_ver7_xlg.jpg" target="_blank" rel="noopener">
+        <img src="images/project_hail_mary_ver7_xlg.jpg" alt="Project Hail Mary — alternative poster" loading="lazy">
+      </a>
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <!-- CTA -->
+  <section class="film-cta reveal">
+    <h2>Read the story that started it all.</h2>
+    <p>The film tie-in edition includes exclusive behind-the-scenes content.</p>
+    <a href="https://www.thalia.at/shop/home/artikeldetails/A1076703857" target="_blank" rel="noopener" class="btn btn-primary">Order the Book</a>
+  </section>
+
+  <footer>
+    <p>Project Hail Mary &copy; Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page &middot; Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){const c=document.getElementById('stars'),x=c.getContext('2d');let w,h,s=[];function r(){w=c.width=innerWidth;h=c.height=innerHeight}function i(){r();s=Array.from({length:220},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,a:Math.random()*.7+.3,s:Math.random()*.0008+.0002}))}function d(t){x.clearRect(0,0,w,h);s.forEach(p=>{const f=.5+.5*Math.sin(t*p.s*6);x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=`rgba(232,230,225,${p.a*f})`;x.fill()});requestAnimationFrame(d)}i();addEventListener('resize',r);requestAnimationFrame(d)})();
+const o=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>o.observe(el));
+</script>
+</body>
+</html>
