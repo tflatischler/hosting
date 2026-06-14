@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Film — Project Hail Mary</title>
+<link rel="stylesheet" href="phm-styles.css">
+</head>
+<body>
+
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">PHM · 2021</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Synopsis</a></li>
+        <li><a href="characters.html">Characters</a></li>
+        <li><a href="themes.html">Themes</a></li>
+        <li><a href="storymap.html">Storymap</a></li>
+        <li><a href="film.html" class="active">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="eyebrow">Project Hail Mary · 2026</div>
+    <h1>The Film</h1>
+    <p class="lead">Directed by Phil Lord &amp; Christopher Miller. Starring Ryan Gosling.</p>
+  </div>
+
+  <div class="astrophage-line"></div>
+
+  <section class="film-placeholder reveal">
+    <div class="transmission-card" style="max-width: 600px; margin: 0 auto;">
+      <div class="mono-label">&#9670; Coming Soon</div>
+      <blockquote style="font-size: 1.2rem;">This section is being prepared. Photos and video content will be added shortly.</blockquote>
+    </div>
+    <p style="margin-top: 2rem;">In the meantime, feel free to explore the other sections — or grab a copy of the film tie-in edition.</p>
+    <a href="https://www.thalia.at/shop/home/artikeldetails/A1076703857" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top: 1rem;">Order the Book</a>
+  </section>
+
+  <footer>
+    <p>Project Hail Mary &copy; Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page · Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){const c=document.getElementById('stars'),x=c.getContext('2d');let w,h,s=[];function r(){w=c.width=innerWidth;h=c.height=innerHeight}function i(){r();s=Array.from({length:220},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,a:Math.random()*.7+.3,s:Math.random()*.0008+.0002}))}function d(t){x.clearRect(0,0,w,h);s.forEach(p=>{const f=.5+.5*Math.sin(t*p.s*6);x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=`rgba(232,230,225,${p.a*f})`;x.fill()});requestAnimationFrame(d)}i();addEventListener('resize',r);requestAnimationFrame(d)})();
+const o=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>o.observe(el));
+</script>
+</body>
+</html>

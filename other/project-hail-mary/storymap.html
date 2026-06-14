@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storymap — Project Hail Mary</title>
+<link rel="stylesheet" href="phm-styles.css">
+<style>
+  .storymap-intro {
+    padding: 0 2rem 4rem;
+    max-width: 760px; margin: 0 auto;
+    text-align: center;
+  }
+  .storymap-intro p {
+    color: var(--text-dim); font-size: 1rem;
+    font-weight: 300; line-height: 1.8;
+  }
+  .stop-earth { border-color: var(--eridian-blue); }
+  .stop-earth::before { border-color: var(--eridian-blue) !important; box-shadow: 0 0 10px rgba(58,107,159,0.4) !important; }
+  .stop-space::before { border-color: var(--astrophage-amber) !important; }
+  .stop-tau::before { border-color: var(--tau-ceti) !important; box-shadow: 0 0 10px rgba(212,201,168,0.4) !important; }
+  .stop-eridani::before { border-color: var(--rocky-copper) !important; box-shadow: 0 0 10px rgba(196,120,50,0.4) !important; }
+  .tag-earth { background: rgba(58,107,159,0.15); color: var(--eridian-blue); }
+  .tag-space { background: rgba(232,166,48,0.12); color: var(--astrophage-amber); }
+  .tag-tau { background: rgba(212,201,168,0.12); color: var(--tau-ceti); }
+  .tag-eridani { background: rgba(196,120,50,0.12); color: var(--rocky-copper); }
+  .star-fact {
+    margin-top: 1rem; padding: 1rem 1.2rem;
+    background: var(--hull-grey);
+    border-left: 2px solid var(--astrophage-amber);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.85rem; color: var(--text-dim);
+    font-weight: 300; line-height: 1.6;
+  }
+  .star-fact strong {
+    color: var(--star-white); font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="starfield"><canvas id="stars"></canvas></div>
+
+<div class="page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="index.html" class="logo">PHM · 2021</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Synopsis</a></li>
+        <li><a href="characters.html">Characters</a></li>
+        <li><a href="themes.html">Themes</a></li>
+        <li><a href="storymap.html" class="active">Storymap</a></li>
+        <li><a href="film.html">The Film</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="eyebrow">Project Hail Mary</div>
+    <h1>Storymap</h1>
+    <p class="lead">A journey from a quiet classroom to the farthest reaches of interstellar space.</p>
+  </div>
+
+  <div class="storymap-intro">
+    <p>The story of Project Hail Mary unfolds across two timelines and several extraordinary locations. Through Ryland's present-day mission and his gradually returning memories, we travel from the familiar surroundings of Earth to star systems that exist in real life — carefully chosen by Andy Weir for their scientific accuracy.</p>
+  </div>
+
+  <div class="astrophage-line"></div>
+
+  <section class="storymap reveal">
+    <div class="storymap-timeline">
+
+      <div class="storymap-stop stop-earth">
+        <div class="stop-distance">0 light-years · Home</div>
+        <h3>Earth</h3>
+        <p>The story begins — and frequently returns to — planet Earth. Through flashback sequences, we see Ryland Grace in his everyday life as a science teacher, happily explaining biology to his students. We also witness the growing panic as scientists discover the Astrophage and realise what it means for the future of the sun.</p>
+        <p>The Earth scenes are vital to the story. They show us what is at stake: not just a planet, but billions of individual lives, routines, and relationships. They also introduce us to the enormous international effort to respond to the crisis, led by the formidable Eva Stratt.</p>
+        <span class="stop-tag tag-earth">Flashback Timeline</span>
+      </div>
+
+      <div class="storymap-stop stop-earth">
+        <div class="stop-distance">0.000 007 2 light-years · Inner Solar System</div>
+        <h3>Venus</h3>
+        <p>Venus plays a surprising role in the story. Early in the scientific investigation, researchers notice something unusual happening near Venus — a phenomenon connected to the Astrophage. This discovery becomes a crucial piece of the puzzle, helping scientists understand how the organism moves through space and reproduces.</p>
+        <p>It is a brilliant example of how Weir uses real locations in our solar system to make the science feel believable. Venus is not just a backdrop; it is an active part of the mystery.</p>
+        <span class="stop-tag tag-earth">Flashback Timeline</span>
+        <div class="star-fact"><strong>Real science:</strong> Venus is the hottest planet in our solar system, with surface temperatures above 450 &deg;C — an environment that makes it a plausible setting for extreme biological activity in the novel.</div>
+      </div>
+
+      <div class="storymap-stop stop-space">
+        <div class="stop-distance">0 to 11.9 light-years · In Transit</div>
+        <h3>The Hail Mary</h3>
+        <p>The spaceship Hail Mary is where Ryland spends the present-day portion of the story. It is his laboratory, his home, and his prison — a small vessel designed for a specific mission, travelling through the emptiness between stars.</p>
+        <p>The ship itself becomes a kind of character. Ryland must learn how every system works, solve technical problems with limited resources, and somehow keep himself alive for the duration of the journey. The isolation is intense, and Weir captures it beautifully — the silence, the routine, the constant awareness of just how far from home Ryland truly is.</p>
+        <span class="stop-tag tag-space">Present Timeline</span>
+      </div>
+
+      <div class="storymap-stop stop-tau">
+        <div class="stop-distance">11.9 light-years from Earth</div>
+        <h3>Tau Ceti</h3>
+        <p>Tau Ceti is the destination of the Hail Mary's mission — a real star system located nearly twelve light-years from Earth, in the constellation Cetus. Scientists in the novel identify Tau Ceti as a key to understanding the Astrophage, and Ryland is sent there to investigate.</p>
+        <p>It is at Tau Ceti that the story takes its most dramatic turn. What Ryland finds there — and whom he encounters — transforms the mission from a lonely scientific expedition into something far more remarkable.</p>
+        <span class="stop-tag tag-tau">Present Timeline</span>
+        <div class="star-fact"><strong>Real science:</strong> Tau Ceti is a G-type star similar to our Sun, roughly 11.9 light-years away. Astronomers believe it may host several planets, including possible super-Earths in its habitable zone. It also has a large debris disc, similar to our Kuiper Belt.</div>
+      </div>
+
+      <div class="storymap-stop stop-eridani">
+        <div class="stop-distance">16.3 light-years from Earth</div>
+        <h3>40 Eridani</h3>
+        <p>The 40 Eridani star system is Rocky's home. Located in the constellation Eridanus, it is a triple star system — three stars orbiting one another — with conditions that are quite different from those on Earth.</p>
+        <p>Although we never visit 40 Eridani directly in the story, it plays a vital role. Rocky's descriptions of his home world give us glimpses of a society and a way of life that are entirely alien, yet governed by the same fundamental laws of physics. The parallels between Rocky's civilisation and our own are one of the novel's most thought-provoking elements.</p>
+        <span class="stop-tag tag-eridani">Rocky's Home</span>
+        <div class="star-fact"><strong>Real science:</strong> 40 Eridani is indeed a triple star system, roughly 16.3 light-years from Earth. The primary star, 40 Eridani A, is a K-type orange dwarf. Science fiction fans may also recognise it as the system long associated with the planet Vulcan in Star Trek.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="astrophage-line"></div>
+
+  <section style="padding: 5rem 2rem; max-width: 760px; margin: 0 auto; text-align: center;" class="reveal">
+    <div class="label">A Note on the Science</div>
+    <p style="color: var(--text-dim); font-size: 1rem; font-weight: 300; line-height: 1.8; margin-bottom: 1.5rem;">Andy Weir is known for his dedication to scientific accuracy. The star systems in Project Hail Mary are real, and their distances, spectral types, and known properties are faithfully represented. Weir reportedly spent as much time working through calculations in spreadsheets as he did writing the actual prose — a level of care that gives the story its remarkable sense of believability.</p>
+    <a href="https://www.thalia.at/shop/home/artikeldetails/A1076703857" target="_blank" rel="noopener" class="btn btn-primary">Order the Book</a>
+  </section>
+
+  <footer>
+    <p>Project Hail Mary &copy; Andy Weir, 2021. Published by Ballantine Books.</p>
+    <p>Fan page · Not affiliated with the publisher or film studio.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){const c=document.getElementById('stars'),x=c.getContext('2d');let w,h,s=[];function r(){w=c.width=innerWidth;h=c.height=innerHeight}function i(){r();s=Array.from({length:220},()=>({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.4+.3,a:Math.random()*.7+.3,s:Math.random()*.0008+.0002}))}function d(t){x.clearRect(0,0,w,h);s.forEach(p=>{const f=.5+.5*Math.sin(t*p.s*6);x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fillStyle=`rgba(232,230,225,${p.a*f})`;x.fill()});requestAnimationFrame(d)}i();addEventListener('resize',r);requestAnimationFrame(d)})();
+const o=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:.12});document.querySelectorAll('.reveal').forEach(el=>o.observe(el));
+</script>
+</body>
+</html>
