@@ -15,6 +15,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* keep in-page anchors clear of the fixed nav */
   background: var(--deep-space);
   color: var(--star-white);
 }
@@ -48,9 +49,10 @@ nav .logo {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem; letter-spacing: 0.2em;
   text-transform: uppercase; color: var(--astrophage-amber);
-  text-decoration: none;
+  text-decoration: none; white-space: nowrap; flex-shrink: 0;
 }
 nav .nav-links { display: flex; gap: 2rem; list-style: none; }
+nav .nav-links a { white-space: nowrap; }
 nav .nav-links a {
   color: var(--text-dim); text-decoration: none;
   font-size: 0.85rem; letter-spacing: 0.05em;
@@ -364,11 +366,13 @@ footer p { font-size: 0.75rem; color: var(--text-dim); }
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.reveal {
+/* Only hide reveals up-front when JS is present to bring them back —
+   without JS (.js never set) the content stays fully visible. */
+.js .reveal {
   opacity: 0; transform: translateY(30px);
   transition: opacity 0.8s ease, transform 0.8s ease;
 }
-.reveal.visible { opacity: 1; transform: translateY(0); }
+.js .reveal.visible { opacity: 1; transform: translateY(0); }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
@@ -379,7 +383,16 @@ footer p { font-size: 0.75rem; color: var(--text-dim); }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-  nav .nav-links { gap: 0.8rem; }
-  nav .nav-links a { font-size: 0.7rem; }
+  nav .nav-inner { gap: 1rem; }
+  nav .nav-links {
+    gap: 1.1rem; flex-wrap: nowrap;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; -ms-overflow-style: none;
+    /* fade the right edge to hint the list scrolls */
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+            mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  nav .nav-links::-webkit-scrollbar { display: none; }
+  nav .nav-links a { font-size: 0.72rem; }
   .char-detail-block { grid-template-columns: 1fr; gap: 1.5rem; }
 }
