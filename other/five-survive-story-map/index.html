@@ -3,7 +3,16 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Five Survive – Story Map</title>
-<link href="./five-survive-story-map_files/css2" rel="stylesheet">
+<meta name="description" content="A story map for Holly Jackson's thriller Five Survive — setting, protagonist Red Kenny, the sniper hook and predictions. Eight hours, six friends, five survive.">
+<meta name="theme-color" content="#0a0806">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0806'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23c0392b' stroke-width='1.5'/%3E%3Cpath d='M16 4v6M16 22v6M4 16h6M22 16h6' stroke='%23c0392b' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23c0392b'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Five Survive – Story Map">
+<meta property="og:description" content="Eight hours. Six friends. Five survive. A story map for Holly Jackson's thriller.">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -94,7 +103,13 @@
     line-height: 0.9;
     color: var(--off-white);
     text-shadow: 0 0 60px rgba(192,57,43,0.3), 4px 4px 0 var(--dark-red);
-    animation: fadeIn 1s ease 0.1s both;
+    animation: fadeIn 1s ease 0.1s both, titlePulse 5s ease-in-out 1.4s infinite;
+  }
+
+  /* Tense, slow heartbeat-style red glow under the title */
+  @keyframes titlePulse {
+    0%, 100% { text-shadow: 0 0 60px rgba(192,57,43,0.30), 4px 4px 0 var(--dark-red); }
+    50%      { text-shadow: 0 0 95px rgba(192,57,43,0.60), 4px 4px 0 var(--dark-red); }
   }
 
   .title span {
@@ -136,6 +151,12 @@
     position: relative;
     overflow: hidden;
     animation: fadeIn 1s ease both;
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--dark-red);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(192,57,43,0.15);
   }
 
   .card:nth-child(1) { animation-delay: 0.3s; }
@@ -264,6 +285,13 @@
     letter-spacing: 0.05em;
     opacity: 0.6;
     animation: fadeIn 1s ease 1s both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; }
+    .container, .subtitle, .title, .card, .footer {
+      opacity: 1 !important; transform: none !important;
+    }
   }
 
   @media (max-width: 600px) {
