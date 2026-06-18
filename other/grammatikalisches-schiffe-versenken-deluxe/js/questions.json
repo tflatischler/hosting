@@ -1,0 +1,152 @@
+[
+  {
+    "question": "Wie viele Verse hat ein Sonett?",
+    "answers": ["14", "12", "16"],
+    "correct": 0
+  },
+  {
+    "question": "In welche Teile gliedert sich ein Sonett?",
+    "answers": ["2 Quartette und 2 Terzette", "3 Strophen à 4 Verse", "4 Strophen à 3 Verse"],
+    "correct": 0
+  },
+  {
+    "question": "Aus welchem Land stammt das Sonett ursprünglich?",
+    "answers": ["Italien", "Frankreich", "Deutschland"],
+    "correct": 0
+  },
+  {
+    "question": "Welches Schema folgt im Sonett auf die These?",
+    "answers": ["Antithese und Synthese", "Klimax und Katharsis", "Metapher und Allegorie"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Epoche prägte das Sonett besonders?",
+    "answers": ["Renaissance", "Romantik", "Expressionismus"],
+    "correct": 0
+  },
+  {
+    "question": "Was ist eine Ode?",
+    "answers": ["Ein feierliches, erhabenes Gedicht", "Ein humorvolles Spottgedicht", "Ein erzählendes Langgedicht"],
+    "correct": 0
+  },
+  {
+    "question": "Welcher Dichter ist bekannt für seine Oden?",
+    "answers": ["Klopstock", "Goethe", "Schiller"],
+    "correct": 0
+  },
+  {
+    "question": "Sind Oden in der Regel gereimt?",
+    "answers": ["Nein, sie sind meist reimlos", "Ja, immer im Paarreim", "Ja, im Kreuzreim"],
+    "correct": 0
+  },
+  {
+    "question": "An wen oder was richtet sich eine Ode typischerweise?",
+    "answers": ["An eine Person, Idee oder abstrakten Gegenstand", "An die Natur", "An den Leser direkt"],
+    "correct": 0
+  },
+  {
+    "question": "Welcher Sprachstil ist typisch für eine Ode?",
+    "answers": ["Gehoben", "Umgangssprachlich", "Schlicht und volkstümlich"],
+    "correct": 0
+  },
+  {
+    "question": "Was kennzeichnet ein Volkslied?",
+    "answers": ["Einfache Sprache und eingängiger Rhythmus", "Komplexe Metaphorik", "Freie Versform"],
+    "correct": 0
+  },
+  {
+    "question": "Wie wurden Volkslieder traditionell weitergegeben?",
+    "answers": ["Mündlich überliefert", "In Bibliotheken archiviert", "Durch Zeitungen verbreitet"],
+    "correct": 0
+  },
+  {
+    "question": "Welches Thema ist NICHT typisch für ein Volkslied?",
+    "answers": ["Philosophische Abstraktion", "Liebe und Natur", "Abschied und Heimat"],
+    "correct": 0
+  },
+  {
+    "question": "Welches Reimschema ist typisch für ein Volkslied?",
+    "answers": ["Regelmäßiger Reim", "Kein Reim", "Nur unreiner Reim"],
+    "correct": 0
+  },
+  {
+    "question": "Volkslieder wurden oft…",
+    "answers": ["gemeinschaftlich gesungen", "nur solo vorgetragen", "nur gelesen, nie gesungen"],
+    "correct": 0
+  },
+  {
+    "question": "Aus welchem Land stammt das Haiku?",
+    "answers": ["Japan", "China", "Korea"],
+    "correct": 0
+  },
+  {
+    "question": "Wie lautet die Silbenfolge eines Haiku?",
+    "answers": ["5–7–5", "7–5–7", "3–5–3"],
+    "correct": 0
+  },
+  {
+    "question": "Was fängt ein Haiku typischerweise ein?",
+    "answers": ["Einen flüchtigen Naturmoment", "Eine politische Aussage", "Eine epische Geschichte"],
+    "correct": 0
+  },
+  {
+    "question": "Verwendet ein Haiku Reim und Metrum?",
+    "answers": ["Nein", "Ja, immer", "Nur Metrum, keinen Reim"],
+    "correct": 0
+  },
+  {
+    "question": "Aus wie vielen Zeilen besteht ein Haiku?",
+    "answers": ["3", "4", "5"],
+    "correct": 0
+  },
+  {
+    "question": "Was ist eine Elegie?",
+    "answers": ["Ein Klage- oder Trauergedicht", "Ein Lobgedicht", "Ein Liebesgedicht"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Themen behandelt die Elegie?",
+    "answers": ["Vergänglichkeit, Verlust, Sehnsucht", "Heldentum und Abenteuer", "Humor und Satire"],
+    "correct": 0
+  },
+  {
+    "question": "In welcher Form sind Elegien häufig verfasst?",
+    "answers": ["Distichen", "Stanzen", "Limerick-Form"],
+    "correct": 0
+  },
+  {
+    "question": "Was ist ein Distichon?",
+    "answers": ["Ein Hexameter gefolgt von einem Pentameter", "Zwei Reimpaare", "Ein einzelner Blankvers"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Stimmung dominiert in einer Elegie?",
+    "answers": ["Wehmütige Reflexion", "Ausgelassene Freude", "Beißende Ironie"],
+    "correct": 0
+  },
+  {
+    "question": "Welcher Dichter schrieb berühmte Oden auf Deutsch?",
+    "answers": ["Hölderlin", "Kafka", "Brecht"],
+    "correct": 0
+  },
+  {
+    "question": "Was unterscheidet das Sonett von freien Versen?",
+    "answers": ["Fester Aufbau mit 14 Versen", "Es hat keinen Reim", "Es ist immer gereimt im Paarreim"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Gedichtform hat die strengste formale Vorgabe?",
+    "answers": ["Sonett", "Volkslied", "Elegie"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Gedichtform verzichtet bewusst auf Reim?",
+    "answers": ["Haiku", "Volkslied", "Sonett"],
+    "correct": 0
+  },
+  {
+    "question": "Welche Gedichtform ist am kürzesten?",
+    "answers": ["Haiku", "Sonett", "Ode"],
+    "correct": 0
+  }
+]

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lyrik-Schlacht – Schiffe versenken</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <!-- START SCREEN -->
+  <div id="screen-start" class="screen active">
+    <div class="start-container">
+      <div class="logo-area">
+        <div class="logo-waves">
+          <span class="wave-char">~</span><span class="wave-char">~</span><span class="wave-char">~</span>
+        </div>
+        <h1>Lyrik-Schlacht</h1>
+        <p class="subtitle">Schiffe versenken × Deutsch-Quiz</p>
+      </div>
+
+      <div class="start-options">
+        <button id="btn-create" class="btn btn-blue">Spiel erstellen</button>
+        <div class="divider"><span>oder</span></div>
+        <div class="join-group">
+          <input type="text" id="input-join-id" placeholder="Spiel-Code eingeben" maxlength="6" autocomplete="off">
+          <button id="btn-join" class="btn btn-red">Beitreten</button>
+        </div>
+      </div>
+
+      <div id="waiting-area" class="hidden">
+        <p>Dein Spiel-Code:</p>
+        <div id="game-code" class="game-code"></div>
+        <p class="hint">Teile diesen Code mit deinem Gegner.</p>
+        <div class="spinner"></div>
+      </div>
+
+      <div id="connection-error" class="error hidden"></div>
+      <p class="footer-note">BG/BRG/BORG – Deutsch 2025/26</p>
+    </div>
+  </div>
+
+  <!-- PLACEMENT SCREEN -->
+  <div id="screen-placement" class="screen">
+    <div class="phase-header">
+      <h2>Platziere deine Schiffe</h2>
+      <p id="placement-info">Klicke auf dein Feld, um Schiffe zu setzen. <button id="btn-rotate" class="btn-small">Drehen (R)</button></p>
+    </div>
+    <div class="placement-layout">
+      <div class="board-wrapper">
+        <div id="placement-board" class="board"></div>
+      </div>
+      <div class="ship-list" id="ship-list"></div>
+    </div>
+    <button id="btn-ready" class="btn btn-blue btn-large hidden">Bereit!</button>
+    <div id="waiting-opponent" class="hidden">
+      <div class="spinner"></div>
+      <p>Warte auf Gegner…</p>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <div class="score-panel score-blue">
+        <span class="score-label" id="label-you">DU</span>
+        <span class="score-value" id="score-you">0</span>
+      </div>
+      <div id="turn-indicator" class="turn-indicator">Dein Zug</div>
+      <div class="score-panel score-red">
+        <span class="score-label" id="label-opp">GEGNER</span>
+        <span class="score-value" id="score-opp">0</span>
+      </div>
+    </div>
+    <div class="boards-container">
+      <div class="board-section">
+        <h3>Gegnerisches Feld</h3>
+        <div id="board-enemy" class="board board-enemy"></div>
+      </div>
+      <div class="board-section">
+        <h3>Dein Feld</h3>
+        <div id="board-own" class="board board-own"></div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <button id="chat-toggle" class="chat-toggle" aria-label="Chat öffnen">
+      <span class="chat-toggle-icon">💬</span>
+      <span id="chat-unread" class="chat-unread hidden">0</span>
+    </button>
+    <div id="chat-window" class="chat-window hidden">
+      <div class="chat-header">
+        <span>Chat</span>
+        <button id="chat-close" class="chat-close" aria-label="Chat schließen">×</button>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-emojis" id="chat-emojis"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" class="chat-input" placeholder="Nachricht…" maxlength="200" autocomplete="off">
+        <button id="chat-send" class="chat-send" aria-label="Senden">➤</button>
+      </div>
+    </div>
+
+    <!-- INFO -->
+    <button id="info-toggle" class="info-toggle" aria-label="Info">i</button>
+    <div id="info-popup" class="info-popup hidden">
+      Made by tim + Claude with <span class="info-heart">❤️</span>
+    </div>
+  </div>
+
+  <!-- QUIZ OVERLAY -->
+  <div id="quiz-overlay" class="overlay hidden">
+    <div class="quiz-box">
+      <div class="quiz-header">Treffer! Bestätige mit Wissen:</div>
+      <p id="quiz-question" class="quiz-question"></p>
+      <div id="quiz-answers" class="quiz-answers"></div>
+      <div id="quiz-result" class="quiz-result hidden"></div>
+    </div>
+  </div>
+
+  <!-- GAME OVER OVERLAY -->
+  <div id="gameover-overlay" class="overlay hidden">
+    <div class="gameover-box">
+      <h2 id="gameover-title"></h2>
+      <p id="gameover-text"></p>
+      <button id="btn-restart" class="btn btn-blue">Neues Spiel</button>
+    </div>
+  </div>
+
+  <script src="js/questions.json" type="application/json" id="questions-data"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
