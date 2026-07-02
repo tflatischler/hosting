@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WM 2026 Voting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e13;--surface:#13171e;--surface2:#1a1f28;--surface3:#222833;
+  --border:#2a3040;--border-hover:#3a4050;
+  --accent:#d4a829;--accent-bg:rgba(212,168,41,.1);
+  --green:#34a853;--red:#ea4335;--blue:#5b9cf0;
+  --text:#d8dce4;--text-secondary:#8891a0;--dim:#555d6e;
+  --radius:10px;
+}
+html{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+
+.header{padding:28px 20px 24px;text-align:center;background:var(--surface);border-bottom:1px solid var(--border)}
+.header h1{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+.header h1 span{color:var(--accent)}
+.header .subtitle{color:var(--text-secondary);font-size:.78rem;margin-top:6px}
+
+.user-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 20px;background:var(--surface);border-bottom:1px solid var(--border);font-size:.78rem}
+.user-bar .user-name{font-weight:700;color:var(--accent)}
+.user-bar .btn-ghost{background:none;border:1px solid var(--border);color:var(--text-secondary);
+  padding:4px 10px;border-radius:5px;font:500 .72rem/1 'Inter',sans-serif;cursor:pointer}
+.user-bar .btn-ghost:hover{border-color:var(--border-hover);color:var(--text)}
+
+.nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.nav button{flex:1;padding:14px 4px;background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--dim);font:600 .78rem/1 'Inter',sans-serif;cursor:pointer;transition:color .15s;white-space:nowrap}
+.nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+.nav button:hover{color:var(--text-secondary)}
+
+.container{max-width:600px;margin:0 auto;padding:20px 16px 80px}
+.view{display:none}.view.active{display:block}
+
+.match-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:12px;transition:border-color .15s}
+.match-card:hover{border-color:var(--border-hover)}
+.match-card.has-voted{border-left:3px solid var(--green)}
+.match-card.locked{opacity:.6}
+.match-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:.7rem;color:var(--text-secondary)}
+.match-round{background:var(--surface2);padding:2px 8px;border-radius:4px;font-weight:600;font-size:.68rem}
+.match-location{color:var(--dim)}
+.match-teams{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.team{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:0}
+.team-flag{font-size:2rem;line-height:1}
+.team-name{font-size:.78rem;font-weight:600;text-align:center;word-break:break-word}
+.match-score{font-size:1.4rem;font-weight:800;color:var(--accent);min-width:65px;text-align:center;letter-spacing:.02em}
+.match-score.pending{font-size:.82rem;font-weight:500;color:var(--dim)}
+.match-actions{margin-top:14px;display:flex;justify-content:center}
+.match-vote-info{margin-top:10px;font-size:.72rem;color:var(--dim);text-align:center;line-height:1.6}
+.match-vote-info strong{color:var(--text-secondary)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:8px 16px;border-radius:6px;border:none;font:600 .78rem/1 'Inter',sans-serif;cursor:pointer;transition:opacity .1s}
+.btn:active{opacity:.8}
+.btn-primary{background:var(--accent);color:#0b0e13}
+.btn-primary:hover{opacity:.9}
+.btn-primary:disabled{background:var(--surface3);color:var(--dim);cursor:not-allowed}
+.btn-secondary{background:var(--surface3);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--border-hover)}
+.btn-small{padding:6px 12px;font-size:.72rem}
+
+.vote-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center}
+.vote-sheet{background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;
+  width:100%;max-width:440px;padding:24px 20px 32px;max-height:85vh;overflow-y:auto;
+  border:1px solid var(--border);border-bottom:none;animation:slideUp .2s ease-out}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.vote-sheet h3{text-align:center;margin-bottom:4px;font-size:1.05rem;font-weight:700}
+.score-input{display:flex;align-items:center;justify-content:center;gap:12px;margin:18px 0}
+.score-input .score-col{text-align:center}
+.score-input .score-col .score-label{font-size:.7rem;color:var(--dim);margin-bottom:4px;font-weight:500}
+.score-input input[type="number"]{width:60px;height:52px;text-align:center;font-size:1.5rem;font-weight:700;
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);outline:none;-moz-appearance:textfield}
+.score-input input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
+.score-input input:focus{border-color:var(--accent)}
+.score-input .colon{font-size:1.6rem;font-weight:800;color:var(--dim);margin-top:16px}
+.vote-extras{margin-bottom:20px}
+.vote-extras label{display:block;font-size:.75rem;color:var(--text-secondary);margin-bottom:4px;font-weight:500}
+.vote-extras input{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:.85rem;outline:none}
+.vote-extras input:focus{border-color:var(--accent)}
+.vote-extras input::placeholder{color:var(--dim)}
+.vote-actions{display:flex;gap:8px}
+.vote-actions .btn{flex:1;padding:12px}
+.existing-vote{background:var(--surface2);border-radius:6px;padding:8px 12px;margin-bottom:14px;
+  text-align:center;font-size:.78rem;color:var(--text-secondary)}
+.existing-vote strong{color:var(--accent)}
+
+.lb-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.lb-table th{font-size:.65rem;text-transform:uppercase;color:var(--dim);letter-spacing:.06em;
+  padding:10px 12px;text-align:left;background:var(--surface2);font-weight:600}
+.lb-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:.82rem}
+.lb-table tr:first-child td{border-top:none}
+.lb-table tbody tr:hover{background:var(--surface2)}
+.lb-rank{font-weight:800;width:32px}
+.lb-rank.r1{color:var(--accent)}.lb-rank.r2{color:#a0a8b4}.lb-rank.r3{color:#b08050}
+.lb-name{font-weight:600}
+.lb-points{font-weight:800;text-align:right}
+.lb-detail{font-size:.65rem;color:var(--dim);text-align:right;white-space:nowrap}
+.lb-empty{text-align:center;padding:40px 16px;color:var(--dim);font-size:.85rem}
+
+.date-group{margin-top:28px;margin-bottom:12px;font-size:.75rem;font-weight:700;color:var(--accent);
+  padding-bottom:6px;border-bottom:1px solid var(--surface3)}
+.date-group:first-child{margin-top:4px}
+
+.filter-bar{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;scrollbar-width:none}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{padding:6px 14px;border-radius:6px;font-size:.75rem;font-weight:600;
+  background:var(--surface);border:1px solid var(--border);color:var(--dim);cursor:pointer;white-space:nowrap}
+.filter-chip:hover{color:var(--text-secondary);border-color:var(--border-hover)}
+.filter-chip.active{background:var(--accent);color:#0b0e13;border-color:var(--accent)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;
+  display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:32px 24px 24px;width:90%;max-width:340px;text-align:center}
+.modal h2{margin-bottom:6px;font-size:1.15rem;font-weight:800}
+.modal p{color:var(--text-secondary);font-size:.82rem;margin-bottom:20px}
+.modal input{width:100%;padding:11px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:.95rem;font-weight:500;text-align:center;outline:none;margin-bottom:14px}
+.modal input:focus{border-color:var(--accent)}
+
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 12px;text-align:center}
+.stat-card .stat-val{font-size:1.4rem;font-weight:800;color:var(--accent)}
+.stat-card .stat-label{font-size:.65rem;color:var(--dim);margin-top:2px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+
+.pts-badge{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:700}
+.pts-3{background:rgba(52,168,83,.12);color:var(--green)}
+.pts-1{background:rgba(91,156,240,.12);color:var(--blue)}
+.pts-0{background:rgba(234,67,53,.1);color:var(--red)}
+
+.setup-screen{padding:60px 20px;text-align:center;max-width:480px;margin:0 auto}
+.setup-screen h2{font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:8px}
+.setup-screen p{color:var(--text-secondary);margin-bottom:20px;font-size:.85rem}
+.setup-steps{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.setup-steps ol{padding-left:18px}
+.setup-steps li{margin-bottom:12px;font-size:.82rem;color:var(--text-secondary);line-height:1.5}
+.setup-steps code{background:var(--surface2);padding:1px 6px;border-radius:3px;font-size:.75rem;color:var(--accent)}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--green);color:#fff;padding:10px 20px;border-radius:6px;
+  font-size:.82rem;font-weight:600;z-index:999;animation:toastIn .2s ease-out}
+.toast.error{background:var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .6s linear infinite;margin:40px auto 6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{text-align:center;color:var(--dim);font-size:.8rem}
+
+.section-title{font-size:.8rem;color:var(--text-secondary);margin-bottom:12px}
+.results-voter{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:.78rem}
+.results-voter:not(:last-child){border-bottom:1px solid rgba(255,255,255,.04)}
+.results-voter-name{color:var(--text-secondary)}
+
+/* ===== CHAT ===== */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:300px;max-height:600px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.chat-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:2px}
+.chat-msg{max-width:85%;padding:6px 10px;border-radius:8px;font-size:.8rem;line-height:1.4;word-break:break-word}
+.chat-msg.mine{align-self:flex-end;background:var(--accent-bg);border:1px solid rgba(212,168,41,.2)}
+.chat-msg.other{align-self:flex-start;background:var(--surface2);border:1px solid var(--border)}
+.chat-msg .chat-author{font-size:.65rem;font-weight:700;color:var(--accent);margin-bottom:1px}
+.chat-msg.mine .chat-author{color:var(--accent)}
+.chat-msg.other .chat-author{color:var(--text-secondary)}
+.chat-msg .chat-text{color:var(--text)}
+.chat-msg .chat-time{font-size:.6rem;color:var(--dim);margin-top:1px}
+.chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface2)}
+.chat-input-row input{flex:1;padding:9px 12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:.82rem;outline:none}
+.chat-input-row input:focus{border-color:var(--accent)}
+.chat-input-row input::placeholder{color:var(--dim)}
+.chat-input-row button{padding:0 14px;border-radius:6px;background:var(--accent);border:none;
+  color:#0b0e13;font-weight:700;font-size:.82rem;cursor:pointer}
+.chat-input-row button:hover{opacity:.9}
+.chat-empty{text-align:center;color:var(--dim);font-size:.82rem;margin:auto;padding:20px}
+.chat-day{text-align:center;font-size:.65rem;color:var(--dim);padding:8px 0 4px;font-weight:500}
+
+@media(min-width:480px){
+  .vote-overlay{align-items:center}
+  .vote-sheet{border-radius:var(--radius);border-bottom:1px solid var(--border);max-height:90vh}
+}
+@media(max-width:380px){
+  .team-name{font-size:.68rem}
+  .match-score{min-width:50px;font-size:1.2rem}
+}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+button,input{-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+
+<div id="nameModal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2>Willkommen</h2>
+    <p>Gib deinen Namen ein, um beim WM 2026 Voting mitzumachen.</p>
+    <input type="text" id="nameInput" placeholder="Dein Name" maxlength="24" autocomplete="off">
+    <button class="btn btn-primary" onclick="setUserName()" style="width:100%;padding:12px;font-size:.85rem">Weiter</button>
+  </div>
+</div>
+
+<div id="setupScreen" class="setup-screen" style="display:none">
+  <h2>Firebase einrichten</h2>
+  <p>Die App braucht eine Firebase-Datenbank.</p>
+  <div class="setup-steps">
+    <ol>
+      <li>Geh zu <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+      <li><strong>Projekt hinzufugen</strong> &rarr; Name: <code>wm-voting</code> &rarr; Erstellen</li>
+      <li><strong>Build &rarr; Realtime Database &rarr; Datenbank erstellen</strong> &rarr; <strong>Im Testmodus starten</strong></li>
+      <li><strong>Projekteinstellungen</strong> &rarr; <strong>Web-App hinzufugen</strong> (<code>&lt;/&gt;</code>)</li>
+      <li>Die <code>firebaseConfig</code> Werte in <code>index.html</code> einsetzen</li>
+    </ol>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="header">
+    <h1>WM 2026 <span>Voting</span></h1>
+    <div class="subtitle">FIFA WORLD-CHAMPIONSHIP 2026 VOTING</div>
+  </div>
+
+  <div class="user-bar">
+    <div><span style="color:var(--text-secondary)">Angemeldet als </span><span class="user-name" id="displayName"></span></div>
+    <button class="btn-ghost" onclick="changeName()">Wechseln</button>
+  </div>
+
+  <nav class="nav">
+    <button class="active" onclick="showView('matches',this)">Spiele</button>
+    <button onclick="showView('vote',this)">Tippen</button>
+    <button onclick="showView('leaderboard',this)">Rangliste</button>
+    <button onclick="showView('results',this)">Ergebnisse</button>
+    <button onclick="showView('chat',this)">Chat</button>
+  </nav>
+
+  <div class="container">
+    <div id="view-matches" class="view active">
+      <div class="filter-bar" id="matchFilter"></div>
+      <div id="matchList"><div class="spinner"></div><div class="loading-text">Spiele laden&hellip;</div></div>
+    </div>
+    <div id="view-vote" class="view">
+      <div id="voteableMatches"><div class="spinner"></div><div class="loading-text">Spiele laden&hellip;</div></div>
+    </div>
+    <div id="view-leaderboard" class="view">
+      <div class="stats-row" id="lbStats"></div>
+      <div id="leaderboardTable"></div>
+    </div>
+    <div id="view-results" class="view">
+      <div id="resultsList"></div>
+    </div>
+    <div id="view-chat" class="view">
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chatMessages"><div class="chat-empty">Noch keine Nachrichten. Schreib die erste!</div></div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Nachricht schreiben..." maxlength="500" autocomplete="off">
+          <button onclick="sendChat()">Senden</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="voteOverlay" class="vote-overlay" style="display:none">
+  <div class="vote-sheet" id="voteSheet"></div>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBwxq-s1MOiL9BAzER6tQN2SomzyKENTt0",
+  authDomain: "wm-tippspiel-585c6.firebaseapp.com",
+  databaseURL: "https://wm-tippspiel-585c6-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "wm-tippspiel-585c6",
+  storageBucket: "wm-tippspiel-585c6.firebasestorage.app",
+  messagingSenderId: "769244939635",
+  appId: "1:769244939635:web:37245df228fc45ae32b106"
+};
+
+const MATCHES_URL = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json';
+
+const FLAGS = {
+  'Mexico':'🇲🇽','South Africa':'🇿🇦','South Korea':'🇰🇷','Czech Republic':'🇨🇿',
+  'USA':'🇺🇸','United States':'🇺🇸','Bolivia':'🇧🇴','Turkey':'🇹🇷','China':'🇨🇳',
+  'France':'🇫🇷','Colombia':'🇨🇴','New Zealand':'🇳🇿','Uganda':'🇺🇬',
+  'Argentina':'🇦🇷','Peru':'🇵🇪','Cape Verde':'🇨🇻','Cabo Verde':'🇨🇻','Indonesia':'🇮🇩',
+  'England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Denmark':'🇩🇰','Paraguay':'🇵🇾','Bahrain':'🇧🇭',
+  'Germany':'🇩🇪','Serbia':'🇷🇸','Thailand':'🇹🇭','Kenya':'🇰🇪',
+  'Brazil':'🇧🇷','Italy':'🇮🇹','Ecuador':'🇪🇨','Cameroon':'🇨🇲',
+  'Spain':'🇪🇸','Australia':'🇦🇺','Albania':'🇦🇱','Qatar':'🇶🇦',
+  'Portugal':'🇵🇹','Morocco':'🇲🇦','Guatemala':'🇬🇹','Uzbekistan':'🇺🇿',
+  'Netherlands':'🇳🇱','Japan':'🇯🇵','Iran':'🇮🇷','Senegal':'🇸🇳',
+  'Belgium':'🇧🇪','Canada':'🇨🇦','Ghana':'🇬🇭','Egypt':'🇪🇬',
+  'Croatia':'🇭🇷','Switzerland':'🇨🇭','Wales':'🏴󠁧󠁢󠁷󠁬󠁳󠁿','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'Uruguay':'🇺🇾','Nigeria':'🇳🇬','Costa Rica':'🇨🇷','Saudi Arabia':'🇸🇦',
+  'Poland':'🇵🇱','Chile':'🇨🇱','Tunisia':'🇹🇳','Panama':'🇵🇦',
+  'Sweden':'🇸🇪','Austria':'🇦🇹','Norway':'🇳🇴','Honduras':'🇭🇳',
+  'Ivory Coast':'🇨🇮',"Côte d'Ivoire":'🇨🇮','DR Congo':'🇨🇩',
+  'Jamaica':'🇯🇲','Trinidad and Tobago':'🇹🇹','Algeria':'🇩🇿','Mali':'🇲🇱',
+  'Slovenia':'🇸🇮','Slovakia':'🇸🇰','Romania':'🇷🇴','Ukraine':'🇺🇦',
+  'Ireland':'🇮🇪','Iceland':'🇮🇸','Finland':'🇫🇮','Greece':'🇬🇷',
+  'Israel':'🇮🇱','Iraq':'🇮🇶','Syria':'🇸🇾','Jordan':'🇯🇴',
+  'Oman':'🇴🇲','Palestine':'🇵🇸','Vietnam':'🇻🇳','Philippines':'🇵🇭',
+};
+
+const TEAM_DE = {
+  'Mexico':'Mexiko','South Africa':'Südafrika','South Korea':'Südkorea','Czech Republic':'Tschechien',
+  'USA':'USA','United States':'USA','Bolivia':'Bolivien','Turkey':'Türkei','China':'China',
+  'France':'Frankreich','Colombia':'Kolumbien','New Zealand':'Neuseeland','Uganda':'Uganda',
+  'Argentina':'Argentinien','Peru':'Peru','Cape Verde':'Kap Verde','Cabo Verde':'Kap Verde','Indonesia':'Indonesien',
+  'England':'England','Denmark':'Dänemark','Paraguay':'Paraguay','Bahrain':'Bahrain',
+  'Germany':'Deutschland','Serbia':'Serbien','Thailand':'Thailand','Kenya':'Kenia',
+  'Brazil':'Brasilien','Italy':'Italien','Ecuador':'Ecuador','Cameroon':'Kamerun',
+  'Spain':'Spanien','Australia':'Australien','Albania':'Albanien','Qatar':'Katar',
+  'Portugal':'Portugal','Morocco':'Marokko','Guatemala':'Guatemala','Uzbekistan':'Usbekistan',
+  'Netherlands':'Niederlande','Japan':'Japan','Iran':'Iran','Senegal':'Senegal',
+  'Belgium':'Belgien','Canada':'Kanada','Ghana':'Ghana','Egypt':'Ägypten',
+  'Croatia':'Kroatien','Switzerland':'Schweiz','Wales':'Wales','Scotland':'Schottland',
+  'Uruguay':'Uruguay','Nigeria':'Nigeria','Costa Rica':'Costa Rica','Saudi Arabia':'Saudi-Arabien',
+  'Poland':'Polen','Chile':'Chile','Tunisia':'Tunesien','Panama':'Panama',
+  'Sweden':'Schweden','Austria':'Österreich','Norway':'Norwegen','Honduras':'Honduras',
+  'Ivory Coast':'Elfenbeinküste',"Côte d'Ivoire":'Elfenbeinküste','DR Congo':'DR Kongo',
+  'Jamaica':'Jamaika','Trinidad and Tobago':'Trinidad & Tobago','Algeria':'Algerien','Mali':'Mali',
+  'Slovenia':'Slowenien','Slovakia':'Slowakei','Romania':'Rumänien','Ukraine':'Ukraine',
+  'Ireland':'Irland','Iceland':'Island','Finland':'Finnland','Greece':'Griechenland',
+  'Israel':'Israel','Iraq':'Irak','Syria':'Syrien','Jordan':'Jordanien',
+  'Oman':'Oman','Palestine':'Palästina','Vietnam':'Vietnam','Philippines':'Philippinen',
+};
+
+function getFlag(t){return FLAGS[t]||'🏳️'}
+function getDE(t){return TEAM_DE[t]||t||'TBD'}
+
+let currentUser=localStorage.getItem('wmTippUser');
+let matches=[], allVotes={}, db=null;
+
+function init(){
+  if(FIREBASE_CONFIG.apiKey==='YOUR_API_KEY'){document.getElementById('setupScreen').style.display='';return}
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db=firebase.database();
+  if(!currentUser) document.getElementById('nameModal').style.display='';
+  else startApp();
+}
+
+function setUserName(){
+  const n=document.getElementById('nameInput').value.trim();
+  if(!n)return;
+  currentUser=n;
+  localStorage.setItem('wmTippUser',n);
+  document.getElementById('nameModal').style.display='none';
+  startApp();
+}
+
+function changeName(){
+  document.getElementById('nameInput').value=currentUser||'';
+  document.getElementById('nameModal').style.display='';
+  document.getElementById('nameModal').querySelector('h2').textContent='Name ändern';
+}
+
+function startApp(){
+  document.getElementById('app').style.display='';
+  document.getElementById('displayName').textContent=currentUser;
+  loadMatches();
+  listenVotes();
+  listenChat();
+}
+
+async function loadMatches(){
+  try{
+    const r=await fetch(MATCHES_URL), d=await r.json();
+    matches=(d.matches||[]).map((m,i)=>({...m,key:makeKey(m),idx:i,kickoff:parseKickoff(m.date,m.time),finished:!!(m.score&&m.score.ft)}));
+    renderAll();
+  }catch(e){
+    document.getElementById('matchList').innerHTML='<div class="lb-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function makeKey(m){return(m.date+'_'+m.team1+'_'+m.team2).replace(/\s+/g,'-').replace(/[^a-zA-Z0-9_-]/g,'')}
+
+function parseKickoff(ds,ts){
+  if(!ds)return null;if(!ts)return new Date(ds+'T00:00:00Z');
+  const m=ts.match(/(\d{1,2}):(\d{2})\s*UTC([+-]\d+)?/);
+  if(!m)return new Date(ds+'T00:00:00Z');
+  let h=parseInt(m[1]),mn=parseInt(m[2]);const off=m[3]?parseInt(m[3]):0;h-=off;
+  return new Date(Date.UTC(parseInt(ds.slice(0,4)),parseInt(ds.slice(5,7))-1,parseInt(ds.slice(8,10)),h,mn));
+}
+
+function listenVotes(){db.ref('votes').on('value',s=>{allVotes=s.val()||{};renderAll()})}
+
+function showView(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(id==='chat')scrollChat();
+}
+
+function renderAll(){renderMatches();renderVoteable();renderLeaderboard();renderResults()}
+
+let matchFilter='today';
+function renderMatches(){
+  document.getElementById('matchFilter').innerHTML=[
+    ['today','Heute'],['upcoming','Kommende'],['played','Gespielt'],['all','Alle']
+  ].map(([k,l])=>`<div class="filter-chip ${matchFilter===k?'active':''}" onclick="setFilter('${k}')">${l}</div>`).join('');
+  const todayStr=new Date().toISOString().slice(0,10);
+  let f=matches;
+  if(matchFilter==='upcoming')f=matches.filter(m=>!m.finished);
+  else if(matchFilter==='today')f=matches.filter(m=>m.date===todayStr);
+  else if(matchFilter==='played')f=matches.filter(m=>m.finished);
+  if(!f.length){document.getElementById('matchList').innerHTML=`<div class="lb-empty">${matchFilter==='today'?'Heute keine Spiele.':'Keine Spiele gefunden.'}</div>`;return}
+  let h='',ld='';
+  for(const m of f){if(m.date!==ld){ld=m.date;h+=`<div class="date-group">${formatDate(m.date)} &mdash; ${tr(m.round)}</div>`}h+=card(m,false)}
+  document.getElementById('matchList').innerHTML=h;
+}
+function setFilter(f){matchFilter=f;renderMatches()}
+
+function renderVoteable(){
+  const up=matches.filter(m=>!m.finished&&m.team1&&m.team2);
+  if(!up.length){document.getElementById('voteableMatches').innerHTML='<div class="lb-empty">Keine Spiele zum Tippen.</div>';return}
+  let h='<div class="section-title">Wähle ein Spiel, um deinen Tipp abzugeben.</div>',ld='';
+  for(const m of up){if(m.date!==ld){ld=m.date;h+=`<div class="date-group">${formatDate(m.date)}</div>`}h+=card(m,true)}
+  document.getElementById('voteableMatches').innerHTML=h;
+}
+
+function card(m,voteBtn){
+  const mv=allVotes[m.key]?.[sanitize(currentUser)],lk=m.finished,
+    ts=m.kickoff?m.kickoff.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr':'',
+    vc=allVotes[m.key]?Object.keys(allVotes[m.key]).length:0;
+  const sc=m.finished?`<div class="match-score">${m.score.ft[0]} : ${m.score.ft[1]}</div>`
+    :`<div class="match-score pending">${ts||'TBD'}</div>`;
+  let act='';
+  if(voteBtn&&!lk&&m.team1&&m.team2)act=`<div class="match-actions"><button class="btn btn-primary btn-small" onclick='openVote(${JSON.stringify(m.key)})'>${mv?'Ändern':'Tippen'}</button></div>`;
+  let vi='';
+  if(mv){vi=`<div class="match-vote-info">Dein Tipp: <strong>${mv.home} : ${mv.away}</strong>`;if(m.finished){const p=pts(mv,m.score.ft);vi+=` <span class="pts-badge pts-${p}">${p}P</span>`}vi+='</div>'}
+  if(vc)vi+=`<div class="match-vote-info">${vc} Tipp${vc!==1?'s':''}</div>`;
+  return`<div class="match-card ${mv?'has-voted':''} ${lk?'locked':''}">
+    <div class="match-meta"><span class="match-round">${tr(m.round)}</span><span class="match-location">${m.ground||''}</span></div>
+    <div class="match-teams"><div class="team"><span class="team-flag">${getFlag(m.team1)}</span><span class="team-name">${getDE(m.team1)}</span></div>${sc}<div class="team"><span class="team-flag">${getFlag(m.team2)}</span><span class="team-name">${getDE(m.team2)}</span></div></div>
+    ${act}${vi}</div>`;
+}
+
+function openVote(key){
+  const m=matches.find(x=>x.key===key);if(!m)return;
+  const mv=allVotes[m.key]?.[sanitize(currentUser)];
+  let ex='';if(mv)ex=`<div class="existing-vote">Aktueller Tipp: <strong>${mv.home} : ${mv.away}</strong>${mv.scorer?' &middot; '+esc(mv.scorer):''}</div>`;
+  document.getElementById('voteSheet').innerHTML=`
+    <h3>${getFlag(m.team1)} ${getDE(m.team1)} vs ${getDE(m.team2)} ${getFlag(m.team2)}</h3>
+    <p style="text-align:center;font-size:.75rem;color:var(--dim);margin-bottom:2px">${formatDate(m.date)} &middot; ${tr(m.round)}</p>
+    ${ex}
+    <div class="score-input">
+      <div class="score-col"><div class="score-label">${getDE(m.team1)}</div><input type="number" id="voteHome" min="0" max="20" value="${mv?mv.home:''}" placeholder="0"></div>
+      <span class="colon">:</span>
+      <div class="score-col"><div class="score-label">${getDE(m.team2)}</div><input type="number" id="voteAway" min="0" max="20" value="${mv?mv.away:''}" placeholder="0"></div>
+    </div>
+    <div class="vote-extras"><label>Erster Torschütze (optional)</label><input type="text" id="voteScorer" placeholder="z.B. Mbappé" value="${mv?.scorer||''}" autocomplete="off"></div>
+    <div class="vote-actions"><button class="btn btn-secondary" onclick="closeVote()">Abbrechen</button><button class="btn btn-primary" onclick="submitVote('${m.key}')">Tipp abgeben</button></div>`;
+  document.getElementById('voteOverlay').style.display='';
+  document.getElementById('voteHome').focus();
+}
+function closeVote(){document.getElementById('voteOverlay').style.display='none'}
+
+function submitVote(key){
+  const h=parseInt(document.getElementById('voteHome').value),a=parseInt(document.getElementById('voteAway').value),
+    sc=document.getElementById('voteScorer').value.trim();
+  if(isNaN(h)||isNaN(a)||h<0||a<0){toast('Bitte gültige Tore eingeben!',true);return}
+  const v={home:h,away:a,timestamp:Date.now(),user:currentUser};if(sc)v.scorer=sc;
+  db.ref('votes/'+key+'/'+sanitize(currentUser)).set(v).then(()=>{closeVote();toast('Tipp gespeichert!')}).catch(()=>toast('Fehler!',true));
+}
+
+function renderLeaderboard(){
+  const fin=matches.filter(m=>m.finished),sc={};
+  for(const m of fin){const mv=allVotes[m.key]||{};for(const[u,v]of Object.entries(mv)){
+    if(!sc[u])sc[u]={name:v.user||u,pts:0,exact:0,tend:0,tot:0};
+    const p=pts(v,m.score.ft);sc[u].pts+=p;sc[u].tot++;if(p===3)sc[u].exact++;else if(p===1)sc[u].tend++;
+  }}
+  const sorted=Object.values(sc).sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
+  document.getElementById('lbStats').innerHTML=`
+    <div class="stat-card"><div class="stat-val">${sorted.length}</div><div class="stat-label">Tipper</div></div>
+    <div class="stat-card"><div class="stat-val">${fin.length}</div><div class="stat-label">Ausgewertet</div></div>
+    <div class="stat-card"><div class="stat-val">${matches.filter(m=>!m.finished).length}</div><div class="stat-label">Offen</div></div>`;
+  if(!sorted.length){document.getElementById('leaderboardTable').innerHTML='<div class="lb-empty">Noch keine Auswertung.</div>';return}
+  let h='<table class="lb-table"><thead><tr><th>#</th><th>Name</th><th style="text-align:right">Punkte</th><th style="text-align:right">Detail</th></tr></thead><tbody>';
+  sorted.forEach((s,i)=>{
+    const rc=i<3?` r${i+1}`:'';
+    h+=`<tr><td class="lb-rank${rc}">${i+1}</td><td class="lb-name">${esc(s.name)}</td><td class="lb-points">${s.pts}</td><td class="lb-detail">${s.exact}x exakt &middot; ${s.tend}x Tendenz</td></tr>`;
+  });
+  document.getElementById('leaderboardTable').innerHTML=h+'</tbody></table>';
+}
+
+function renderResults(){
+  const fin=matches.filter(m=>m.finished).reverse();
+  if(!fin.length){document.getElementById('resultsList').innerHTML='<div class="lb-empty">Noch keine Ergebnisse.</div>';return}
+  let h='';
+  for(const m of fin){
+    const mv=allVotes[m.key]||{},voters=Object.entries(mv);
+    h+=`<div class="match-card"><div class="match-meta"><span class="match-round">${tr(m.round)}</span><span class="match-location">${formatDate(m.date)}</span></div>
+      <div class="match-teams"><div class="team"><span class="team-flag">${getFlag(m.team1)}</span><span class="team-name">${getDE(m.team1)}</span></div>
+      <div class="match-score">${m.score.ft[0]} : ${m.score.ft[1]}</div>
+      <div class="team"><span class="team-flag">${getFlag(m.team2)}</span><span class="team-name">${getDE(m.team2)}</span></div></div>`;
+    if(voters.length){
+      h+='<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">';
+      voters.sort((a,b)=>pts(b[1],m.score.ft)-pts(a[1],m.score.ft));
+      for(const[,v]of voters){const p=pts(v,m.score.ft);
+        h+=`<div class="results-voter"><span class="results-voter-name">${esc(v.user||'Anonym')}: <strong>${v.home}:${v.away}</strong>${v.scorer?' <span style="color:var(--dim)">('+esc(v.scorer)+')</span>':''}</span><span class="pts-badge pts-${p}">${p}P</span></div>`}
+      h+='</div>';
+    }else h+='<div class="match-vote-info">Keine Tipps</div>';
+    h+='</div>';
+  }
+  document.getElementById('resultsList').innerHTML=h;
+}
+
+// ===== CHAT =====
+let chatLoaded=false;
+function listenChat(){
+  db.ref('chat').orderByChild('ts').limitToLast(200).on('value',snap=>{
+    const msgs=[];snap.forEach(c=>{msgs.push(c.val())});
+    renderChat(msgs);chatLoaded=true;
+  });
+}
+
+function renderChat(msgs){
+  const el=document.getElementById('chatMessages');
+  if(!msgs.length){el.innerHTML='<div class="chat-empty">Noch keine Nachrichten. Schreib die erste!</div>';return}
+  let h='',lastDay='';
+  for(const m of msgs){
+    const d=new Date(m.ts),day=d.toLocaleDateString('de-DE',{day:'numeric',month:'short'});
+    if(day!==lastDay){lastDay=day;h+=`<div class="chat-day">${day}</div>`}
+    const mine=m.user===currentUser;
+    const time=d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    h+=`<div class="chat-msg ${mine?'mine':'other'}"><div class="chat-author">${esc(m.user)}</div><div class="chat-text">${esc(m.text)}</div><div class="chat-time">${time}</div></div>`;
+  }
+  el.innerHTML=h;
+  scrollChat();
+}
+
+function scrollChat(){
+  const el=document.getElementById('chatMessages');
+  requestAnimationFrame(()=>el.scrollTop=el.scrollHeight);
+}
+
+function sendChat(){
+  const input=document.getElementById('chatInput'),text=input.value.trim();
+  if(!text)return;
+  db.ref('chat').push({user:currentUser,text:text,ts:Date.now()});
+  input.value='';
+}
+
+document.getElementById('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});
+
+// ===== HELPERS =====
+function pts(v,ft){if(!v||!ft)return 0;if(v.home===ft[0]&&v.away===ft[1])return 3;if(Math.sign(v.home-v.away)===Math.sign(ft[0]-ft[1]))return 1;return 0}
+function sanitize(n){return(n||'anon').replace(/[.#$/\[\]]/g,'_')}
+function formatDate(s){if(!s)return'';return new Date(s+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'long'})}
+function tr(r){return{'Matchday 1':'Spieltag 1','Matchday 2':'Spieltag 2','Matchday 3':'Spieltag 3',
+  'Round of 32':'Runde der 32','Round of 16':'Achtelfinale','Quarterfinals':'Viertelfinale',
+  'Quarter-finals':'Viertelfinale','Semifinals':'Halbfinale','Semi-finals':'Halbfinale',
+  'Third place':'Platz 3','Final':'Finale'}[r]||r||''}
+function esc(s){const e=document.createElement('span');e.textContent=s;return e.innerHTML}
+function toast(msg,err){const t=document.createElement('div');t.className='toast'+(err?' error':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
+
+document.getElementById('voteOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVote()});
+document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')setUserName()});
+
+init();
+</script>
+</body>
+</html>
