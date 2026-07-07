@@ -348,8 +348,7 @@ const EXIF = (() => {
     0x010F:'make',0x0110:'model',0x8769:'exifIFD',
     0x829A:'exposureTime',0x829D:'fNumber',0x8827:'iso',
     0xA002:'pixelW',0xA003:'pixelH',0xA434:'lensModel',
-    0x920A:'focalLength',0xA405:'focalLength35',
-    0xA401:'customRendered'
+    0x920A:'focalLength',0xA405:'focalLength35'
   };
 
   function parse(buffer) {
@@ -505,16 +504,6 @@ function formatResolution(exif) {
   return w + ' × ' + h;
 }
 
-function formatHDR(exif) {
-  const v = exif.customRendered;
-  if (v === undefined || v === null) return null;
-  if (v === 0) return 'SDR';
-  if (v === 2 || v === 3) return 'HDR';
-  if (v === 7 || v === 8) return 'HDR';
-  if (v === 1) return 'Processed';
-  return null;
-}
-
 // ── State ────────────────────────────────────────────────
 let state = {
   img: null, exif: null, style: 'classic',
@@ -582,7 +571,6 @@ function renderExifInfo() {
   const e = state.exif;
   const cam = friendlyModel(e.make, e.model);
   const lens = e.lensModel || '–';
-  const hdr = formatHDR(e);
   const items = [
     { label: 'Kamera', value: cam, full: true },
     { label: 'Objektiv', value: lens, full: true },
@@ -593,7 +581,6 @@ function renderExifInfo() {
   ];
   const focal = formatFocal(e);
   if (focal) items.splice(2, 0, { label: 'Brennweite', value: focal });
-  if (hdr) items.push({ label: 'Dynamik', value: hdr });
 
   exifGrid.innerHTML = items.map(it =>
     `<div class="exif-item${it.full ? ' full' : ''}"><div class="label">${it.label}</div><div class="value">${it.value}</div></div>`
@@ -661,9 +648,7 @@ function renderToCanvas(cvs, maxDim) {
   const e = state.exif;
   const cam = friendlyModel(e.make, e.model);
   const lens = e.lensModel || '';
-  const hdr = formatHDR(e);
   const specs = [formatAperture(e), formatShutter(e), formatISO(e)].filter(x => x !== '–');
-  if (hdr) specs.push(hdr);
   const res = formatResolution(e);
   const focal = formatFocal(e);
 
