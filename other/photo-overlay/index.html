@@ -41,7 +41,6 @@ input,select{font-family:inherit}
 /* Editor Layout */
 .editor{display:none;gap:24px}
 .editor.active{display:grid;grid-template-columns:1fr 340px}
-@media(max-width:900px){.editor.active{grid-template-columns:1fr}}
 
 /* Preview */
 .preview-area{
@@ -57,7 +56,6 @@ input,select{font-family:inherit}
 
 /* Sidebar */
 .sidebar{display:flex;flex-direction:column;gap:16px}
-@media(max-width:900px){.sidebar{flex-direction:row;flex-wrap:wrap}}
 
 .panel{
   background:var(--surface);border:1px solid var(--border);
@@ -123,14 +121,99 @@ input,select{font-family:inherit}
 }
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
-/* Responsive */
-@media(max-width:600px){
-  .header{padding:24px 0 20px}
-  .header h1{font-size:1.3rem}
-  .upload-zone{padding:50px 20px}
-  .preview-area{min-height:300px;padding:12px}
-  .style-grid{grid-template-columns:1fr 1fr 1fr}
-  .exif-grid{grid-template-columns:1fr}
+/* Collapsible panels */
+.panel-header{display:flex;align-items:center;justify-content:space-between;cursor:default}
+.panel-header .panel-toggle{display:none}
+.panel-body{overflow:hidden;transition:max-height .25s ease,opacity .2s;max-height:600px;opacity:1}
+.panel.collapsed .panel-body{max-height:0;opacity:0}
+
+/* Mobile download bar - hidden until editor active */
+.mobile-download{display:none}
+
+/* ── Desktop ── */
+@media(min-width:769px){
+  .upload-hint-mobile{display:none}
+}
+
+/* ── Tablet ── */
+@media(max-width:900px){
+  .editor.active{grid-template-columns:1fr}
+}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  html{font-size:14px}
+  .app{padding:12px 12px 100px}
+
+  .header{padding:20px 0 16px}
+  .header h1{font-size:1.4rem}
+  .header p{font-size:.78rem}
+
+  .upload-zone{padding:48px 16px;border-radius:var(--radius-sm)}
+  .upload-icon{font-size:2.4rem;margin-bottom:10px}
+  .upload-zone h2{font-size:1rem}
+  .upload-hint-desktop{display:none}
+
+  .editor.active{grid-template-columns:1fr;gap:12px}
+  .new-photo-row{margin-bottom:8px}
+
+  .preview-area{
+    min-height:auto;padding:8px;border-radius:var(--radius-sm);
+  }
+  .preview-area canvas{
+    max-height:50vh;border-radius:2px;
+    box-shadow:0 4px 16px rgba(0,0,0,.3);
+  }
+
+  .sidebar{gap:10px}
+
+  .panel{padding:12px;border-radius:var(--radius-sm)}
+  .panel-header{cursor:pointer}
+  .panel-header .panel-toggle{
+    display:block;font-size:.7rem;color:var(--text-dim);
+    transition:transform .2s;
+  }
+  .panel.collapsed .panel-header .panel-toggle{transform:rotate(-90deg)}
+
+  /* Style selector: horizontal scroll */
+  .style-grid{
+    display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scroll-snap-type:x mandatory;padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .style-grid::-webkit-scrollbar{display:none}
+  .style-card{
+    flex:0 0 auto;min-width:90px;scroll-snap-align:start;
+    padding:10px 12px;
+  }
+  .style-card .style-icon{font-size:1.1rem;margin-bottom:2px}
+
+  /* EXIF grid compact */
+  .exif-grid{gap:6px}
+  .exif-item{padding:8px 10px}
+  .exif-item .value{font-size:.88rem}
+
+  /* Touch-friendly controls */
+  .control-row{gap:8px;margin-bottom:12px}
+  .control-row label{min-width:60px;font-size:.75rem}
+  .control-row input[type=range]{height:6px}
+  .control-row select{padding:10px 12px;font-size:.85rem;border-radius:var(--radius-sm)}
+
+  /* Hide desktop download panel, show sticky bar when editor active */
+  .panel-export{display:none}
+  .editor.active ~ .mobile-download{
+    display:flex;gap:8px;
+    position:fixed;bottom:0;left:0;right:0;
+    padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));
+    background:rgba(14,14,14,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-top:1px solid var(--border);z-index:90;
+  }
+  .mobile-download .btn{flex:1;padding:14px 16px;font-size:.9rem;font-weight:600}
+
+  .btn{min-height:44px}
+  .btn-secondary{padding:10px 16px}
+
+  .toast{bottom:80px;font-size:.78rem;padding:10px 16px}
 }
 </style>
 </head>
@@ -145,7 +228,8 @@ input,select{font-family:inherit}
   <div class="upload-zone" id="uploadZone">
     <input type="file" accept="image/jpeg,image/jpg,image/tiff" id="fileInput">
     <div class="upload-icon">&#x1F4F7;</div>
-    <h2>Foto hierher ziehen oder klicken</h2>
+    <h2 class="upload-hint-desktop">Foto hierher ziehen oder klicken</h2>
+    <h2 class="upload-hint-mobile">Foto aufnehmen oder ausw&auml;hlen</h2>
     <p>JPEG mit EXIF-Daten &middot; z.B. direkt aus der Kamera</p>
   </div>
 
@@ -161,9 +245,14 @@ input,select{font-family:inherit}
 
     <div class="sidebar">
       <!-- EXIF Info -->
-      <div class="panel">
-        <div class="panel-title">Kamera-Daten</div>
-        <div class="exif-grid" id="exifGrid"></div>
+      <div class="panel" id="panelExif">
+        <div class="panel-header" onclick="togglePanel('panelExif')">
+          <div class="panel-title" style="margin-bottom:0">Kamera-Daten</div>
+          <span class="panel-toggle">&#9660;</span>
+        </div>
+        <div class="panel-body">
+          <div class="exif-grid" id="exifGrid" style="margin-top:12px"></div>
+        </div>
       </div>
 
       <!-- Overlay Styles -->
@@ -198,35 +287,42 @@ input,select{font-family:inherit}
       </div>
 
       <!-- Controls -->
-      <div class="panel">
-        <div class="panel-title">Einstellungen</div>
-        <div class="control-row">
-          <label>Deckkraft</label>
-          <input type="range" id="opacity" min="30" max="100" value="85">
+      <div class="panel" id="panelSettings">
+        <div class="panel-header" onclick="togglePanel('panelSettings')">
+          <div class="panel-title" style="margin-bottom:0">Einstellungen</div>
+          <span class="panel-toggle">&#9660;</span>
         </div>
-        <div class="control-row">
-          <label>Schrift</label>
-          <select id="fontSelect">
-            <option value="sans">Sans-Serif (Clean)</option>
-            <option value="mono">Monospace (Tech)</option>
-            <option value="serif">Serif (Editorial)</option>
-          </select>
-        </div>
-        <div class="control-row">
-          <label>Position</label>
-          <select id="positionSelect">
-            <option value="bottom">Unten</option>
-            <option value="top">Oben</option>
-            <option value="bottom-left">Unten links</option>
-            <option value="bottom-right">Unten rechts</option>
-            <option value="top-left">Oben links</option>
-            <option value="top-right">Oben rechts</option>
-          </select>
+        <div class="panel-body">
+          <div style="margin-top:12px">
+            <div class="control-row">
+              <label>Deckkraft</label>
+              <input type="range" id="opacity" min="30" max="100" value="85">
+            </div>
+            <div class="control-row">
+              <label>Schrift</label>
+              <select id="fontSelect">
+                <option value="sans">Sans-Serif (Clean)</option>
+                <option value="mono">Monospace (Tech)</option>
+                <option value="serif">Serif (Editorial)</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label>Position</label>
+              <select id="positionSelect">
+                <option value="bottom">Unten</option>
+                <option value="top">Oben</option>
+                <option value="bottom-left">Unten links</option>
+                <option value="bottom-right">Unten rechts</option>
+                <option value="top-left">Oben links</option>
+                <option value="top-right">Oben rechts</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Download -->
-      <div class="panel">
+      <!-- Download (desktop only) -->
+      <div class="panel panel-export">
         <div class="panel-title">Export</div>
         <div class="btn-group">
           <button class="btn btn-primary" id="btnDownloadJpg">JPG speichern</button>
@@ -234,6 +330,12 @@ input,select{font-family:inherit}
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Mobile sticky download bar -->
+  <div class="mobile-download" id="mobileDownload">
+    <button class="btn btn-primary" id="btnDownloadJpgMobile">JPG speichern</button>
+    <button class="btn btn-secondary" id="btnDownloadPngMobile">PNG</button>
   </div>
 </div>
 
@@ -824,6 +926,8 @@ function downloadImage(format) {
 
 $('#btnDownloadJpg').addEventListener('click', () => downloadImage('jpg'));
 $('#btnDownloadPng').addEventListener('click', () => downloadImage('png'));
+$('#btnDownloadJpgMobile').addEventListener('click', () => downloadImage('jpg'));
+$('#btnDownloadPngMobile').addEventListener('click', () => downloadImage('png'));
 
 // ── Toast ────────────────────────────────────────────────
 function showToast(msg) {
@@ -831,6 +935,27 @@ function showToast(msg) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2200);
 }
+
+// ── Mobile / Responsive ──────────────────────────────────
+function isMobile() { return window.matchMedia('(max-width:768px)').matches; }
+
+function togglePanel(id) {
+  if (!isMobile()) return;
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+function initMobile() {
+  if (!isMobile()) return;
+  document.getElementById('panelExif').classList.add('collapsed');
+  document.getElementById('panelSettings').classList.add('collapsed');
+}
+
+initMobile();
+window.addEventListener('resize', () => {
+  if (!isMobile()) {
+    document.querySelectorAll('.panel.collapsed').forEach(p => p.classList.remove('collapsed'));
+  }
+});
 </script>
 </body>
 </html>
