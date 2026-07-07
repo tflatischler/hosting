@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Overlay Studio</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--surface:#141414;--border:#222;--border-hover:#333;
+  --text:#e8e8e8;--text-dim:#888;--accent:#d4a04a;--accent-hover:#e8b85c;
+  --radius:12px;--radius-sm:8px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+}
+html{font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+
+.app{max-width:1400px;margin:0 auto;padding:24px 20px}
+
+/* Header */
+.header{text-align:center;padding:40px 0 32px}
+.header h1{font-size:1.6rem;font-weight:600;letter-spacing:-.02em}
+.header h1 span{color:var(--accent)}
+.header p{color:var(--text-dim);font-size:.85rem;margin-top:6px}
+
+/* Upload Zone */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:80px 40px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;position:relative;
+  background:var(--surface);
+}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:#1a1710}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:3rem;margin-bottom:16px;opacity:.5}
+.upload-zone h2{font-size:1.1rem;font-weight:500;margin-bottom:6px}
+.upload-zone p{color:var(--text-dim);font-size:.82rem}
+
+/* Editor Layout */
+.editor{display:none;gap:24px}
+.editor.active{display:grid;grid-template-columns:1fr 340px}
+@media(max-width:900px){.editor.active{grid-template-columns:1fr}}
+
+/* Preview */
+.preview-area{
+  background:var(--surface);border-radius:var(--radius);
+  border:1px solid var(--border);padding:16px;
+  display:flex;align-items:center;justify-content:center;
+  min-height:500px;position:relative;
+}
+.preview-area canvas{
+  max-width:100%;max-height:70vh;border-radius:4px;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+
+/* Sidebar */
+.sidebar{display:flex;flex-direction:column;gap:16px}
+@media(max-width:900px){.sidebar{flex-direction:row;flex-wrap:wrap}}
+
+.panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;
+}
+.panel-title{
+  font-size:.72rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--text-dim);margin-bottom:12px;
+}
+
+/* EXIF Info */
+.exif-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exif-item{background:#1a1a1a;border-radius:var(--radius-sm);padding:10px 12px}
+.exif-item .label{font-size:.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em}
+.exif-item .value{font-size:.95rem;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.exif-item.full{grid-column:1/-1}
+
+/* Style Selector */
+.style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.style-card{
+  border:2px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 10px;text-align:center;transition:border-color .15s,background .15s;
+  background:transparent;
+}
+.style-card:hover{border-color:var(--border-hover);background:#1a1a1a}
+.style-card.active{border-color:var(--accent);background:#1a1710}
+.style-card .style-icon{font-size:1.3rem;margin-bottom:4px}
+.style-card .style-name{font-size:.72rem;font-weight:500}
+
+/* Controls */
+.control-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.control-row:last-child{margin-bottom:0}
+.control-row label{font-size:.78rem;color:var(--text-dim);min-width:70px}
+.control-row input[type=range]{flex:1;accent-color:var(--accent);height:4px}
+.control-row select{
+  flex:1;background:#1a1a1a;border:1px solid var(--border);
+  border-radius:6px;padding:6px 10px;color:var(--text);font-size:.82rem;
+}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 20px;border-radius:var(--radius-sm);font-size:.85rem;
+  font-weight:500;transition:all .15s;
+}
+.btn-primary{background:var(--accent);color:#0a0a0a}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:#1a1a1a;border:1px solid var(--border)}
+.btn-secondary:hover{background:#222;border-color:var(--border-hover)}
+.btn-full{width:100%}
+.btn-group{display:flex;gap:8px}
+.btn-group .btn{flex:1}
+
+/* New Photo Button */
+.new-photo-row{display:flex;justify-content:flex-end;margin-bottom:16px}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#1a1a1a;border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 20px;font-size:.82rem;opacity:0;transition:all .3s;z-index:100;
+  pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* Responsive */
+@media(max-width:600px){
+  .header{padding:24px 0 20px}
+  .header h1{font-size:1.3rem}
+  .upload-zone{padding:50px 20px}
+  .preview-area{min-height:300px;padding:12px}
+  .style-grid{grid-template-columns:1fr 1fr 1fr}
+  .exif-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="header">
+    <h1>Photo <span>Overlay</span> Studio</h1>
+    <p>EXIF-Metadaten als elegante Overlays auf deine Fotos</p>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" accept="image/jpeg,image/jpg,image/tiff" id="fileInput">
+    <div class="upload-icon">&#x1F4F7;</div>
+    <h2>Foto hierher ziehen oder klicken</h2>
+    <p>JPEG mit EXIF-Daten &middot; z.B. direkt aus der Kamera</p>
+  </div>
+
+  <div class="editor" id="editor">
+    <div>
+      <div class="new-photo-row">
+        <button class="btn btn-secondary" id="btnNewPhoto">Neues Foto</button>
+      </div>
+      <div class="preview-area">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <!-- EXIF Info -->
+      <div class="panel">
+        <div class="panel-title">Kamera-Daten</div>
+        <div class="exif-grid" id="exifGrid"></div>
+      </div>
+
+      <!-- Overlay Styles -->
+      <div class="panel">
+        <div class="panel-title">Overlay-Stil</div>
+        <div class="style-grid" id="styleGrid">
+          <button class="style-card active" data-style="classic">
+            <div class="style-icon">&#9608;</div>
+            <div class="style-name">Classic Bar</div>
+          </button>
+          <button class="style-card" data-style="minimal">
+            <div class="style-icon">&#9642;</div>
+            <div class="style-name">Minimal</div>
+          </button>
+          <button class="style-card" data-style="film">
+            <div class="style-icon">&#9634;</div>
+            <div class="style-name">Film</div>
+          </button>
+          <button class="style-card" data-style="editorial">
+            <div class="style-icon">&#9481;</div>
+            <div class="style-name">Editorial</div>
+          </button>
+          <button class="style-card" data-style="stamp">
+            <div class="style-icon">&#9641;</div>
+            <div class="style-name">Stamp</div>
+          </button>
+          <button class="style-card" data-style="gradient">
+            <div class="style-icon">&#9699;</div>
+            <div class="style-name">Gradient</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="panel">
+        <div class="panel-title">Einstellungen</div>
+        <div class="control-row">
+          <label>Deckkraft</label>
+          <input type="range" id="opacity" min="30" max="100" value="85">
+        </div>
+        <div class="control-row">
+          <label>Schrift</label>
+          <select id="fontSelect">
+            <option value="sans">Sans-Serif (Clean)</option>
+            <option value="mono">Monospace (Tech)</option>
+            <option value="serif">Serif (Editorial)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>Position</label>
+          <select id="positionSelect">
+            <option value="bottom">Unten</option>
+            <option value="top">Oben</option>
+            <option value="bottom-left">Unten links</option>
+            <option value="bottom-right">Unten rechts</option>
+            <option value="top-left">Oben links</option>
+            <option value="top-right">Oben rechts</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Download -->
+      <div class="panel">
+        <div class="panel-title">Export</div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="btnDownloadJpg">JPG speichern</button>
+          <button class="btn btn-secondary" id="btnDownloadPng">PNG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── EXIF Parser ──────────────────────────────────────────
+const EXIF = (() => {
+  const TAGS = {
+    0x010F:'make',0x0110:'model',0x8769:'exifIFD',
+    0x829A:'exposureTime',0x829D:'fNumber',0x8827:'iso',
+    0xA002:'pixelW',0xA003:'pixelH',0xA434:'lensModel',
+    0x920A:'focalLength',0xA405:'focalLength35'
+  };
+
+  function parse(buffer) {
+    const dv = new DataView(buffer);
+    if (dv.getUint16(0) !== 0xFFD8) return null;
+
+    let offset = 2;
+    while (offset < dv.byteLength - 1) {
+      const marker = dv.getUint16(offset);
+      if (marker === 0xFFE1) {
+        const len = dv.getUint16(offset + 2);
+        return parseExif(buffer, offset + 4, len - 2);
+      }
+      if ((marker & 0xFF00) !== 0xFF00) break;
+      offset += 2 + dv.getUint16(offset + 2);
+    }
+    return null;
+  }
+
+  function parseExif(buffer, start, length) {
+    const dv = new DataView(buffer, start, length);
+    if (getString(dv, 0, 4) !== 'Exif') return null;
+
+    const tiffStart = 6;
+    const bo = dv.getUint16(tiffStart) === 0x4949;
+    const g16 = (o) => dv.getUint16(tiffStart + o, bo);
+    const g32 = (o) => dv.getUint32(tiffStart + o, bo);
+
+    if (g16(2) !== 42) return null;
+
+    const data = {};
+    const ifd0Offset = g32(4);
+    readIFD(dv, tiffStart, ifd0Offset, bo, data);
+
+    if (data.exifIFD) {
+      readIFD(dv, tiffStart, data.exifIFD, bo, data);
+    }
+    return data;
+  }
+
+  function readIFD(dv, base, offset, le, data) {
+    try {
+      const count = dv.getUint16(base + offset, le);
+      for (let i = 0; i < count; i++) {
+        const entry = offset + 2 + i * 12;
+        const tag = dv.getUint16(base + entry, le);
+        const type = dv.getUint16(base + entry + 2, le);
+        const cnt = dv.getUint32(base + entry + 4, le);
+        const valOff = base + entry + 8;
+
+        const name = TAGS[tag];
+        if (!name) continue;
+
+        const sizes = {1:1,2:1,3:2,4:4,5:8,7:1,9:4,10:8,12:8};
+        const sz = (sizes[type] || 1) * cnt;
+        const dataOff = sz <= 4 ? valOff : base + dv.getUint32(valOff, le);
+
+        if (type === 2) {
+          data[name] = getString(dv, dataOff, cnt).replace(/\0+$/, '').trim();
+        } else if (type === 3) {
+          data[name] = cnt === 1 ? dv.getUint16(dataOff, le) : readShorts(dv, dataOff, cnt, le);
+        } else if (type === 4) {
+          data[name] = dv.getUint32(dataOff, le);
+        } else if (type === 5) {
+          const num = dv.getUint32(dataOff, le);
+          const den = dv.getUint32(dataOff + 4, le);
+          data[name] = den ? num / den : 0;
+          if (name === 'exposureTime') { data._etNum = num; data._etDen = den; }
+        } else if (type === 9) {
+          data[name] = dv.getInt32(dataOff, le);
+        } else if (type === 10) {
+          const num = dv.getInt32(dataOff, le);
+          const den = dv.getInt32(dataOff + 4, le);
+          data[name] = den ? num / den : 0;
+        }
+      }
+    } catch (e) {}
+  }
+
+  function readShorts(dv, off, cnt, le) {
+    const arr = [];
+    for (let i = 0; i < cnt; i++) arr.push(dv.getUint16(off + i * 2, le));
+    return arr;
+  }
+
+  function getString(dv, off, len) {
+    let s = '';
+    for (let i = 0; i < len; i++) {
+      const c = dv.getUint8(off + i);
+      if (c === 0) break;
+      s += String.fromCharCode(c);
+    }
+    return s;
+  }
+
+  return { parse };
+})();
+
+// ── Sony Model Mapping ──────────────────────────────────
+const SONY_MODELS = {
+  'ILCE-6600':'a6600','ILCE-6500':'a6500','ILCE-6400':'a6400',
+  'ILCE-6300':'a6300','ILCE-6100':'a6100','ILCE-6000':'a6000',
+  'ILCE-7M4':'a7 IV','ILCE-7M3':'a7 III','ILCE-7M2':'a7 II',
+  'ILCE-7RM5':'a7R V','ILCE-7RM4':'a7R IV','ILCE-7RM3':'a7R III',
+  'ILCE-7SM3':'a7S III','ILCE-7SM2':'a7S II','ILCE-7C':'a7C',
+  'ILCE-7CR':'a7CR','ILCE-7CM2':'a7C II','ILCE-9M2':'a9 II',
+  'ILCE-9M3':'a9 III','ILCE-1':'a1','ILCE-5100':'a5100',
+  'ZV-E10':'ZV-E10','ZV-E1':'ZV-E1','ILCE-6700':'a6700',
+};
+
+function friendlyModel(make, model) {
+  if (!model) return make || 'Unknown Camera';
+  const m = model.trim();
+  if (make && make.toUpperCase().includes('SONY') && SONY_MODELS[m]) {
+    return 'Sony ' + SONY_MODELS[m];
+  }
+  if (make && !m.toLowerCase().startsWith(make.toLowerCase().split(' ')[0].toLowerCase())) {
+    return make.split(' ')[0] + ' ' + m;
+  }
+  return m;
+}
+
+function formatShutter(exif) {
+  if (!exif.exposureTime) return '–';
+  if (exif.exposureTime >= 1) return exif.exposureTime + 's';
+  if (exif._etNum && exif._etDen) return exif._etNum + '/' + exif._etDen + 's';
+  const denom = Math.round(1 / exif.exposureTime);
+  return '1/' + denom + 's';
+}
+
+function formatAperture(exif) {
+  if (!exif.fNumber) return '–';
+  const f = exif.fNumber;
+  return 'f/' + (f % 1 === 0 ? f.toFixed(0) : f.toFixed(1));
+}
+
+function formatISO(exif) {
+  if (!exif.iso) return '–';
+  const v = Array.isArray(exif.iso) ? exif.iso[0] : exif.iso;
+  return 'ISO ' + v;
+}
+
+function formatFocal(exif) {
+  if (exif.focalLength35) return exif.focalLength35 + 'mm';
+  if (exif.focalLength) return Math.round(exif.focalLength) + 'mm';
+  return '';
+}
+
+function formatResolution(exif) {
+  const w = exif.pixelW;
+  const h = exif.pixelH;
+  if (!w || !h) return '–';
+  return w + ' × ' + h;
+}
+
+// ── State ────────────────────────────────────────────────
+let state = {
+  img: null, exif: null, style: 'classic',
+  opacity: 85, font: 'sans', position: 'bottom',
+  imgW: 0, imgH: 0,
+};
+
+// ── DOM ──────────────────────────────────────────────────
+const $ = (s) => document.querySelector(s);
+const uploadZone = $('#uploadZone');
+const fileInput = $('#fileInput');
+const editor = $('#editor');
+const canvas = $('#previewCanvas');
+const ctx = canvas.getContext('2d');
+const exifGrid = $('#exifGrid');
+const toast = $('#toast');
+
+// ── Upload Handling ──────────────────────────────────────
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+$('#btnNewPhoto').addEventListener('click', () => {
+  editor.classList.remove('active');
+  uploadZone.style.display = '';
+  fileInput.value = '';
+});
+
+function handleFile(file) {
+  if (!file.type.match(/image\/(jpeg|jpg|tiff)/)) {
+    showToast('Bitte ein JPEG-Bild hochladen');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const buf = e.target.result;
+    state.exif = EXIF.parse(buf) || {};
+
+    const img = new Image();
+    img.onload = () => {
+      state.img = img;
+      state.imgW = img.naturalWidth;
+      state.imgH = img.naturalHeight;
+
+      if (!state.exif.pixelW) state.exif.pixelW = img.naturalWidth;
+      if (!state.exif.pixelH) state.exif.pixelH = img.naturalHeight;
+
+      uploadZone.style.display = 'none';
+      editor.classList.add('active');
+      renderExifInfo();
+      renderPreview();
+    };
+    img.src = URL.createObjectURL(file);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── EXIF Display ─────────────────────────────────────────
+function renderExifInfo() {
+  const e = state.exif;
+  const cam = friendlyModel(e.make, e.model);
+  const lens = e.lensModel || '–';
+  const items = [
+    { label: 'Kamera', value: cam, full: true },
+    { label: 'Objektiv', value: lens, full: true },
+    { label: 'Blende', value: formatAperture(e) },
+    { label: 'Shutter', value: formatShutter(e) },
+    { label: 'ISO', value: formatISO(e) },
+    { label: 'Auflösung', value: formatResolution(e) },
+  ];
+  const focal = formatFocal(e);
+  if (focal) items.splice(2, 0, { label: 'Brennweite', value: focal });
+
+  exifGrid.innerHTML = items.map(it =>
+    `<div class="exif-item${it.full ? ' full' : ''}"><div class="label">${it.label}</div><div class="value">${it.value}</div></div>`
+  ).join('');
+}
+
+// ── Style Selection ──────────────────────────────────────
+$('#styleGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('.style-card');
+  if (!card) return;
+  document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+  card.classList.add('active');
+  state.style = card.dataset.style;
+  renderPreview();
+});
+
+$('#opacity').addEventListener('input', (e) => { state.opacity = +e.target.value; renderPreview(); });
+$('#fontSelect').addEventListener('change', (e) => { state.font = e.target.value; renderPreview(); });
+$('#positionSelect').addEventListener('change', (e) => { state.position = e.target.value; renderPreview(); });
+
+// ── Preview Rendering ────────────────────────────────────
+function renderPreview() {
+  if (!state.img) return;
+  renderToCanvas(canvas, 1200);
+}
+
+function getFontFamily() {
+  if (state.font === 'mono') return "'SF Mono','Fira Code','Cascadia Code','Consolas',monospace";
+  if (state.font === 'serif') return "'Georgia','Times New Roman',serif";
+  return "-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif";
+}
+
+function renderToCanvas(cvs, maxDim) {
+  const img = state.img;
+  let w = img.naturalWidth, h = img.naturalHeight;
+
+  const isFilm = state.style === 'film';
+  const borderFrac = isFilm ? 0.06 : 0;
+
+  if (maxDim) {
+    const scale = Math.min(maxDim / w, maxDim / h, 1);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+  }
+
+  const bw = Math.round(w * borderFrac);
+  const bh = Math.round(h * borderFrac);
+  const cw = w + (isFilm ? bw * 2 : 0);
+  const ch = h + (isFilm ? bh * 2 + Math.round(h * 0.06) : 0);
+
+  cvs.width = cw;
+  cvs.height = ch;
+  const c = cvs.getContext('2d');
+
+  if (isFilm) {
+    c.fillStyle = '#f5f2ed';
+    c.fillRect(0, 0, cw, ch);
+    c.drawImage(img, bw, bh, w, h);
+  } else {
+    c.drawImage(img, 0, 0, w, h);
+  }
+
+  const alpha = state.opacity / 100;
+  const font = getFontFamily();
+  const e = state.exif;
+  const cam = friendlyModel(e.make, e.model);
+  const lens = e.lensModel || '';
+  const specs = [formatAperture(e), formatShutter(e), formatISO(e)].filter(x => x !== '–');
+  const res = formatResolution(e);
+  const focal = formatFocal(e);
+
+  const overlays = {
+    classic() { drawClassicBar(c, w, h, cw, ch, alpha, font, cam, lens, specs, res, focal); },
+    minimal() { drawMinimal(c, w, h, cw, ch, alpha, font, cam, specs); },
+    film()    { drawFilmText(c, w, h, cw, ch, bw, bh, alpha, font, cam, lens, specs, res, focal); },
+    editorial(){ drawEditorial(c, w, h, cw, ch, alpha, font, cam, lens, specs, focal); },
+    stamp()   { drawStamp(c, w, h, cw, ch, alpha, font, specs, cam); },
+    gradient(){ drawGradient(c, w, h, cw, ch, alpha, font, cam, lens, specs, focal); },
+  };
+
+  (overlays[state.style] || overlays.classic)();
+}
+
+// ── Helper: position mapping ─────────────────────────────
+function getAnchor(w, h, pos) {
+  const p = pos || state.position;
+  return {
+    x: p.includes('right') ? 1 : p.includes('left') ? 0 : 0.5,
+    y: p.includes('top') ? 0 : 1,
+  };
+}
+
+// ── Overlay: Classic Bar ─────────────────────────────────
+function drawClassicBar(c, w, h, cw, ch, alpha, font, cam, lens, specs, res, focal) {
+  const barH = Math.max(44, Math.round(h * 0.065));
+  const a = getAnchor(w, h);
+  const barY = a.y === 0 ? 0 : ch - barH;
+  const pad = Math.round(barH * 0.35);
+  const fs = Math.round(barH * 0.3);
+  const fsSmall = Math.round(barH * 0.24);
+
+  c.fillStyle = `rgba(0,0,0,${alpha * 0.85})`;
+  c.fillRect(0, barY, cw, barH);
+
+  c.fillStyle = `rgba(255,255,255,${alpha})`;
+  c.font = `600 ${fs}px ${font}`;
+  c.textBaseline = 'middle';
+  const cy = barY + barH / 2;
+
+  c.textAlign = 'left';
+  c.fillText(cam, pad, cy);
+  const camW = c.measureText(cam).width;
+
+  if (lens) {
+    c.font = `400 ${fsSmall}px ${font}`;
+    c.fillStyle = `rgba(255,255,255,${alpha * 0.6})`;
+    c.fillText(lens, pad + camW + Math.round(pad * 0.8), cy);
+  }
+
+  const right = specs.join('  │  ');
+  c.textAlign = 'right';
+  c.font = `500 ${fs}px ${font}`;
+  c.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
+  c.fillText(right, cw - pad, cy);
+}
+
+// ── Overlay: Minimal ─────────────────────────────────────
+function drawMinimal(c, w, h, cw, ch, alpha, font, cam, specs) {
+  const a = getAnchor(w, h);
+  const fs = Math.max(12, Math.round(Math.min(w, h) * 0.022));
+  const pad = Math.round(fs * 1.2);
+  const lineH = Math.round(fs * 1.5);
+
+  c.font = `500 ${fs}px ${font}`;
+  const line1 = cam;
+  const line2 = specs.join('  ·  ');
+  const tw = Math.max(c.measureText(line1).width, c.measureText(line2).width);
+
+  const boxW = tw + pad * 2;
+  const boxH = lineH * 2 + pad * 1.5;
+  const r = Math.round(fs * 0.5);
+
+  let bx, by;
+  if (a.x >= 0.5 && a.y >= 0.5) { bx = cw - boxW - pad; by = ch - boxH - pad; }
+  else if (a.x < 0.5 && a.y >= 0.5) { bx = pad; by = ch - boxH - pad; }
+  else if (a.x >= 0.5 && a.y < 0.5) { bx = cw - boxW - pad; by = pad; }
+  else { bx = pad; by = pad; }
+
+  c.fillStyle = `rgba(0,0,0,${alpha * 0.7})`;
+  c.beginPath();
+  c.roundRect(bx, by, boxW, boxH, r);
+  c.fill();
+
+  c.fillStyle = `rgba(255,255,255,${alpha * 0.6})`;
+  c.font = `400 ${Math.round(fs * 0.85)}px ${font}`;
+  c.textAlign = 'left';
+  c.textBaseline = 'top';
+  c.fillText(line1, bx + pad, by + pad * 0.7);
+
+  c.fillStyle = `rgba(255,255,255,${alpha})`;
+  c.font = `600 ${fs}px ${font}`;
+  c.fillText(line2, bx + pad, by + pad * 0.7 + lineH);
+}
+
+// ── Overlay: Film Border ─────────────────────────────────
+function drawFilmText(c, w, h, cw, ch, bw, bh, alpha, font, cam, lens, specs, res, focal) {
+  const textArea = ch - (bh + h);
+  const fs = Math.max(11, Math.round(textArea * 0.28));
+  const fsSmall = Math.round(fs * 0.8);
+  const pad = bw;
+  const ty = bh + h + Math.round(textArea * 0.45);
+
+  c.fillStyle = `rgba(40,35,30,${alpha})`;
+  c.font = `600 ${fs}px ${font}`;
+  c.textAlign = 'left';
+  c.textBaseline = 'middle';
+  c.fillText(cam, pad, ty);
+
+  if (lens) {
+    const camW = c.measureText(cam).width;
+    c.font = `400 ${fsSmall}px ${font}`;
+    c.fillStyle = `rgba(80,75,65,${alpha * 0.8})`;
+    c.fillText('—  ' + lens, pad + camW + Math.round(fs * 0.5), ty);
+  }
+
+  const right = specs.join('   ');
+  c.textAlign = 'right';
+  c.font = `500 ${fs}px ${font}`;
+  c.fillStyle = `rgba(40,35,30,${alpha * 0.9})`;
+  c.fillText(right, cw - pad, ty);
+}
+
+// ── Overlay: Editorial ───────────────────────────────────
+function drawEditorial(c, w, h, cw, ch, alpha, font, cam, lens, specs, focal) {
+  const a = getAnchor(w, h);
+  const fs = Math.max(12, Math.round(Math.min(w, h) * 0.025));
+  const pad = Math.round(fs * 1.5);
+  const lineH = Math.round(fs * 1.6);
+  const accentW = Math.round(fs * 2.5);
+
+  let bx, by;
+  const blockH = lineH * 3 + pad;
+  if (a.y === 0) { by = pad * 2; } else { by = ch - blockH - pad * 2; }
+  if (a.x >= 0.5) { bx = cw - pad * 2; } else { bx = pad * 2; }
+
+  const align = a.x >= 0.5 ? 'right' : 'left';
+  const dir = align === 'right' ? -1 : 1;
+
+  c.strokeStyle = `rgba(212,160,74,${alpha})`;
+  c.lineWidth = 2;
+  const lineX = align === 'right' ? bx : bx;
+  c.beginPath();
+  c.moveTo(lineX, by);
+  c.lineTo(lineX, by + blockH - pad);
+  c.stroke();
+
+  const tx = align === 'right' ? bx - Math.round(pad * 0.6) : bx + Math.round(pad * 0.6);
+
+  c.textAlign = align;
+  c.textBaseline = 'top';
+
+  c.fillStyle = `rgba(255,255,255,${alpha})`;
+  c.font = `600 ${fs}px ${font}`;
+  c.fillText(cam, tx, by);
+
+  if (lens) {
+    c.fillStyle = `rgba(255,255,255,${alpha * 0.55})`;
+    c.font = `400 ${Math.round(fs * 0.82)}px ${font}`;
+    c.fillText(lens, tx, by + lineH);
+  }
+
+  c.fillStyle = `rgba(212,160,74,${alpha * 0.95})`;
+  c.font = `500 ${fs}px ${font}`;
+  c.fillText(specs.join('  ·  '), tx, by + lineH * 2);
+}
+
+// ── Overlay: Stamp ───────────────────────────────────────
+function drawStamp(c, w, h, cw, ch, alpha, font, specs, cam) {
+  const a = getAnchor(w, h);
+  const fs = Math.max(12, Math.round(Math.min(w, h) * 0.028));
+  const pad = Math.round(fs * 1.2);
+  const lineH = Math.round(fs * 1.5);
+
+  const line1 = cam;
+  const line2 = specs.join('  ');
+  const stampFont = `700 ${fs}px ${font}`;
+  c.font = stampFont;
+  const tw = Math.max(c.measureText(line1).width, c.measureText(line2).width);
+
+  let tx, ty, tAlign;
+  if (a.x >= 0.5 && a.y >= 0.5)      { tx = cw - pad; ty = ch - pad; tAlign = 'right'; }
+  else if (a.x < 0.5 && a.y >= 0.5)  { tx = pad; ty = ch - pad; tAlign = 'left'; }
+  else if (a.x >= 0.5 && a.y < 0.5)  { tx = cw - pad; ty = pad + lineH * 2; tAlign = 'right'; }
+  else                                 { tx = pad; ty = pad + lineH * 2; tAlign = 'left'; }
+
+  c.textAlign = tAlign;
+  c.textBaseline = 'bottom';
+
+  c.save();
+  c.shadowColor = `rgba(0,0,0,${alpha * 0.5})`;
+  c.shadowBlur = Math.round(fs * 0.3);
+
+  c.fillStyle = `rgba(230,160,50,${alpha * 0.95})`;
+  c.font = `700 ${fs}px ${font}`;
+  c.fillText(line2, tx, ty);
+
+  c.fillStyle = `rgba(230,160,50,${alpha * 0.65})`;
+  c.font = `600 ${Math.round(fs * 0.78)}px ${font}`;
+  c.fillText(line1, tx, ty - lineH);
+
+  c.restore();
+}
+
+// ── Overlay: Gradient ────────────────────────────────────
+function drawGradient(c, w, h, cw, ch, alpha, font, cam, lens, specs, focal) {
+  const gradH = Math.round(h * 0.25);
+  const a = getAnchor(w, h);
+
+  let gradY;
+  const grad = c.createLinearGradient(0, 0, 0, 1);
+  if (a.y === 0) {
+    gradY = 0;
+    const g = c.createLinearGradient(0, 0, 0, gradH);
+    g.addColorStop(0, `rgba(0,0,0,${alpha * 0.75})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, cw, gradH);
+  } else {
+    gradY = ch - gradH;
+    const g = c.createLinearGradient(0, gradY, 0, ch);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${alpha * 0.75})`);
+    c.fillStyle = g;
+    c.fillRect(0, gradY, cw, gradH);
+  }
+
+  const fs = Math.max(13, Math.round(Math.min(w, h) * 0.026));
+  const fsSmall = Math.round(fs * 0.82);
+  const pad = Math.round(fs * 2);
+  const lineH = Math.round(fs * 1.5);
+
+  const textY = a.y === 0 ? pad + lineH : ch - pad;
+  c.textBaseline = a.y === 0 ? 'top' : 'bottom';
+  const yDir = a.y === 0 ? 1 : -1;
+
+  c.textAlign = 'left';
+  c.fillStyle = `rgba(255,255,255,${alpha})`;
+  c.font = `600 ${fs}px ${font}`;
+  c.fillText(cam, pad, textY);
+
+  if (lens) {
+    c.fillStyle = `rgba(255,255,255,${alpha * 0.55})`;
+    c.font = `400 ${fsSmall}px ${font}`;
+    c.fillText(lens, pad, textY + lineH * yDir);
+  }
+
+  const specStr = specs.join('   ');
+  c.textAlign = 'right';
+  c.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
+  c.font = `500 ${fs}px ${font}`;
+  c.fillText(specStr, cw - pad, textY);
+}
+
+// ── Download ─────────────────────────────────────────────
+function downloadImage(format) {
+  if (!state.img) return;
+  const dlCanvas = document.createElement('canvas');
+  renderToCanvas(dlCanvas, 0);
+
+  const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+  const quality = format === 'png' ? undefined : 0.95;
+
+  dlCanvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `photo_overlay.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Bild heruntergeladen!');
+  }, mime, quality);
+}
+
+$('#btnDownloadJpg').addEventListener('click', () => downloadImage('jpg'));
+$('#btnDownloadPng').addEventListener('click', () => downloadImage('png'));
+
+// ── Toast ────────────────────────────────────────────────
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
