@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="Browserbasierter APRS/AX.25-Decoder (AFSK1200 / Bell 202) mit Live-Mikrofoneingang, Datei-Upload und eingebautem Testton-Generator.">
+<title>APRS / AX.25 Decoder</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121923;
+    --panel2: #0e141c;
+    --border: #223041;
+    --text: #d7e1ec;
+    --muted: #8296ab;
+    --accent: #4ade80;   /* Mark 1200 Hz */
+    --accent2: #fbbf24;  /* Space 2200 Hz */
+    --danger: #f87171;
+    --link: #7dd3fc;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 0 12px calc(24px + env(safe-area-inset-bottom));
+    max-width: 760px;
+    margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  header { padding: 18px 0 8px; }
+  h1 { font-size: 1.35rem; margin: 0 0 2px; letter-spacing: .3px; }
+  h1 .sub { color: var(--muted); font-weight: 400; font-size: .95rem; display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+  .chip {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 11px; font-size: .78rem; color: var(--muted); font-family: var(--mono);
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+  .chip.err b { color: var(--danger); }
+
+  .tabs { display: flex; gap: 6px; margin: 14px 0 10px; }
+  .tabs button {
+    flex: 1; padding: 10px 6px; font-size: .95rem; font-weight: 600;
+    background: var(--panel); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+  }
+  .tabs button.active { background: #1c2836; color: var(--text); border-color: #3b82f6; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; margin-bottom: 12px;
+  }
+  .panel h2 { font-size: 1rem; margin: 0 0 8px; }
+  .hidden { display: none !important; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  .hint.warn { color: var(--accent2); }
+  .hint.error { color: var(--danger); }
+
+  button.big {
+    width: 100%; padding: 13px; font-size: 1.05rem; font-weight: 700;
+    border: none; border-radius: 10px; cursor: pointer;
+    background: #2563eb; color: #fff;
+  }
+  button.big.stop { background: #b91c1c; }
+  button.big:disabled { opacity: .5; }
+  .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .btnrow button, label.filebtn {
+    flex: 1 1 140px; text-align: center; padding: 11px 8px; font-size: .92rem; font-weight: 600;
+    background: #1c2836; color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer;
+  }
+  input[type="file"] { display: none; }
+
+  /* Pegelanzeige */
+  .meter { height: 14px; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 7px; overflow: hidden; margin-top: 10px; }
+  .meter .bar { height: 100%; width: 0%; background: var(--accent); transition: width 60ms linear; }
+  .meter .bar.hot { background: var(--danger); }
+  .meter .bar.low { background: var(--accent2); }
+  #levelText { font-size: .8rem; font-family: var(--mono); color: var(--muted); margin-top: 4px; }
+
+  canvas { width: 100%; height: 140px; display: block; background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 10px; margin-top: 10px; }
+
+  .progress { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .progress .bar { height: 100%; width: 0%; background: #3b82f6; }
+
+  /* Paketliste */
+  .pkheader { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px; }
+  .pkheader h2 { font-size: 1rem; margin: 0; }
+  .pkheader .actions { display: flex; gap: 6px; }
+  .pkheader .actions button {
+    padding: 6px 10px; font-size: .8rem; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+  }
+  .packet {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 13px; margin-bottom: 10px; overflow-wrap: anywhere;
+  }
+  .packet .top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .packet .time { color: var(--muted); font-size: .78rem; font-family: var(--mono); }
+  .badge { font-size: .68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+  .badge.ok { background: #14532d; color: #86efac; }
+  .badge.test { background: #1e3a5f; color: #93c5fd; }
+  .badge.type { background: #3b2f14; color: #fcd34d; }
+  .route { font-family: var(--mono); font-size: .92rem; margin: 3px 0; }
+  .route .src { color: var(--accent); font-weight: 700; }
+  .route .dst { color: var(--link); }
+  .route .via { color: var(--muted); font-size: .82rem; }
+  .fields { font-size: .87rem; margin: 4px 0 0; }
+  .fields .k { color: var(--muted); }
+  .payload { font-family: var(--mono); font-size: .82rem; color: #b6c6d8;
+    background: var(--panel2); border-radius: 8px; padding: 6px 9px; margin-top: 7px;
+    white-space: pre-wrap; word-break: break-all; }
+  .links { margin-top: 6px; font-size: .85rem; display: flex; gap: 14px; flex-wrap: wrap; }
+  a { color: var(--link); }
+  details { margin-top: 7px; }
+  summary { cursor: pointer; color: var(--muted); font-size: .8rem; user-select: none; }
+  details pre {
+    font-family: var(--mono); font-size: .7rem; line-height: 1.45; color: #9fb2c6;
+    background: var(--panel2); border-radius: 8px; padding: 8px; overflow-x: auto; margin: 6px 0 0;
+  }
+  #empty { color: var(--muted); text-align: center; padding: 24px 0; font-size: .9rem; }
+  .testinfo { font-family: var(--mono); font-size: .78rem; color: var(--muted);
+    background: var(--panel2); border-radius: 8px; padding: 8px 10px; margin-top: 8px;
+    white-space: pre-wrap; word-break: break-all; }
+  footer { color: var(--muted); font-size: .75rem; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>APRS / AX.25 Decoder
+    <span class="sub">AFSK1200 · Bell 202 · komplett im Browser</span>
+  </h1>
+  <div class="chips">
+    <span class="chip">fs <b id="stSr">–</b></span>
+    <span class="chip">Frames <b id="stFrames">0</b></span>
+    <span class="chip err">CRC-Fehler <b id="stCrc">0</b></span>
+  </div>
+</header>
+
+<div class="tabs" id="tabs">
+  <button data-tab="live" class="active">🎙️ Live (Mic)</button>
+  <button data-tab="file">📄 Datei laden</button>
+  <button data-tab="test">🧪 Testton</button>
+</div>
+
+<!-- ======================= Live-Modus ======================= -->
+<section class="panel" id="panel-live">
+  <button class="big" id="btnMic">Mikrofon starten</button>
+  <div class="meter"><div class="bar" id="levelBar"></div></div>
+  <div id="levelText">Pegel: –</div>
+  <canvas id="spec"></canvas>
+  <p class="hint" id="micHint">Halte das Mikrofon an den Lautsprecher des Funkgeräts.
+     Bei anliegendem AFSK-Signal leuchten die Markierungen bei
+     <span style="color:var(--accent)">1200&nbsp;Hz</span> und
+     <span style="color:var(--accent2)">2200&nbsp;Hz</span> deutlich auf.</p>
+  <p class="hint error hidden" id="httpsHint">⚠️ Mikrofonzugriff erfordert HTTPS (oder localhost).
+     Diese Seite läuft gerade nicht in einem sicheren Kontext.</p>
+  <p class="hint error hidden" id="micError"></p>
+</section>
+
+<!-- ======================= Datei-Modus ======================= -->
+<section class="panel hidden" id="panel-file">
+  <label class="filebtn" for="fileInput" style="display:block">Audiodatei auswählen (WAV / MP3 / M4A)</label>
+  <input type="file" id="fileInput" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac">
+  <div class="progress"><div class="bar" id="fileProg"></div></div>
+  <p class="hint" id="fileStatus">Die Datei wird lokal dekodiert – nichts wird hochgeladen.</p>
+</section>
+
+<!-- ======================= Test-Modus ======================= -->
+<section class="panel hidden" id="panel-test">
+  <h2>Eingebauter Testton-Generator</h2>
+  <p class="hint">Erzeugt ein synthetisches AFSK1200-Paket mit bekanntem Inhalt und schickt es
+     durch dieselbe Decoder-Kette – so lässt sich der Decoder ohne Funkgerät verifizieren.
+     „Abspielen“ gibt den Ton über den Lautsprecher aus (praktisch für einen
+     Mikrofon-Loopback-Test mit einem zweiten Gerät).</p>
+  <div class="btnrow">
+    <button id="btnTestDecode">Testpaket dekodieren</button>
+    <button id="btnTestPlay">▶ Testton abspielen</button>
+  </div>
+  <div class="testinfo" id="testInfo"></div>
+</section>
+
+<!-- ======================= Paketliste ======================= -->
+<div class="pkheader">
+  <h2>Dekodierte Pakete</h2>
+  <div class="actions">
+    <button id="btnExportJson">JSON</button>
+    <button id="btnExportTxt">TXT</button>
+    <button id="btnClear">Leeren</button>
+  </div>
+</div>
+<div id="packets"><div id="empty">Noch keine Pakete dekodiert.</div></div>
+
+<footer>Alle Verarbeitung findet lokal im Browser statt · Web Audio API · CRC-16/X.25</footer>
+
+<script>
+"use strict";
+/* =====================================================================
+ *  APRS / AX.25 Decoder — AFSK1200 (Bell 202) Software-Modem in JavaScript
+ *
+ *  Signalkette (DSP):
+ *
+ *    Audio (Mic / Datei / Generator)
+ *      │  Float32-Samples, beliebige Samplerate fs
+ *      ▼
+ *    [1] Korrelations-Demodulator (Quadratur)
+ *        Das Signal wird mit sin/cos bei 1200 Hz (Mark) und 2200 Hz (Space)
+ *        multipliziert. Die Produkte werden über ein gleitendes Fenster von
+ *        genau einer Bitdauer (fs/1200 Samples) aufsummiert. Aus I/Q ergibt
+ *        sich die Energie beider Töne; die normierte Differenz
+ *        (mark − space)/(mark + space) ist ein weiches Bit in [−1, +1] und
+ *        unabhängig vom Eingangspegel (eingebaute AGC).
+ *      ▼
+ *    [2] Tiefpass (1-Pol-IIR, ~800 Hz)
+ *        glättet die Ton-Entscheidung und unterdrückt Restwelligkeit.
+ *      ▼
+ *    [3] Bit-Slicer + PLL-Taktrückgewinnung
+ *        Ein Phasenakkumulator läuft mit 1200 Baud. Bei jedem Vorzeichen-
+ *        wechsel (Zero-Crossing) der Ton-Differenz wird die Phase in Richtung
+ *        0.5 gezogen — Tonwechsel liegen dann genau ZWISCHEN den Abtast-
+ *        zeitpunkten, abgetastet wird in der Bitmitte (beim Phasenüberlauf).
+ *      ▼
+ *    [4] NRZI-Dekodierung
+ *        AX.25 kodiert NRZI: Tonwechsel = 0, kein Wechsel = 1.
+ *        (Dadurch ist es egal, welcher Ton „Mark“ und welcher „Space“ ist.)
+ *      ▼
+ *    [5] HDLC-Deframing + Bit-Destuffing
+ *        Der Sender fügt nach fünf 1en eine 0 ein, damit Nutzdaten nie wie
+ *        das Flag 0x7E (01111110) aussehen — der Empfänger entfernt sie
+ *        wieder. Frames liegen zwischen zwei Flags; sieben 1en = Abbruch.
+ *      ▼
+ *    [6] CRC-16/X.25-Prüfung (Polynom 0x8408 reflektiert, Init/XorOut 0xFFFF)
+ *        Frames mit falscher Prüfsumme werden verworfen (nur gezählt).
+ *      ▼
+ *    [7] AX.25-Parser (Adressen, Control, PID, Info-Feld)
+ *      ▼
+ *    [8] APRS-Payload-Parser (Position, Message, Status, Objekt, Wetter, …)
+ * ===================================================================== */
+
+const BAUD   = 1200;   // Bell 202: 1200 Baud
+const F_MARK  = 1200;  // "Mark"-Ton in Hz
+const F_SPACE = 2200;  // "Space"-Ton in Hz
+
+/* ---------------------------------------------------------------------
+ * CRC-16/X.25 ("CRC-CCITT reflektiert"):
+ * Init 0xFFFF, reflektiertes Polynom 0x8408 (= 0x1021 gespiegelt),
+ * Ergebnis invertiert. Der FCS wird im Frame Low-Byte zuerst übertragen.
+ * ------------------------------------------------------------------- */
+function crc16x25(bytes, len) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < len; i++) {
+    crc ^= bytes[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 1) ? ((crc >>> 1) ^ 0x8408) : (crc >>> 1);
+    }
+  }
+  return (crc ^ 0xFFFF) & 0xFFFF;
+}
+
+/* ---------------------------------------------------------------------
+ * AFSK1200-Demodulator — Stufen [1]–[6] der Kette oben.
+ * process(Float32Array) darf beliebig gestückelt aufgerufen werden
+ * (Live-Chunks oder eine ganze Datei); der Zustand bleibt erhalten.
+ * onFrame(bytes, crcOk, samplePos) wird für jedes geschlossene, plausible
+ * HDLC-Frame aufgerufen (bytes inklusive der 2 FCS-Bytes).
+ * ------------------------------------------------------------------- */
+class AFSKDemodulator {
+  constructor(sampleRate, onFrame) {
+    this.fs = sampleRate;
+    this.onFrame = onFrame;
+
+    // [1] Korrelationsfenster: genau eine Bitdauer.
+    this.N = Math.max(4, Math.round(sampleRate / BAUD));
+    this.bufMc = new Float32Array(this.N);  // Ringpuffer der Produkte
+    this.bufMs = new Float32Array(this.N);  //   x·cos / x·sin bei 1200 Hz
+    this.bufSc = new Float32Array(this.N);  //   x·cos / x·sin bei 2200 Hz
+    this.bufSs = new Float32Array(this.N);
+    this.sumMc = 0; this.sumMs = 0; this.sumSc = 0; this.sumSs = 0;
+    this.idx = 0;
+
+    // Lokale Oszillatoren (Phaseninkremente pro Sample)
+    this.phM = 0; this.phS = 0;
+    this.dphM = 2 * Math.PI * F_MARK  / sampleRate;
+    this.dphS = 2 * Math.PI * F_SPACE / sampleRate;
+
+    // [2] 1-Pol-Tiefpass auf die Ton-Differenz, Grenzfrequenz ~800 Hz
+    this.lp = 0;
+    this.lpAlpha = 1 - Math.exp(-2 * Math.PI * 800 / sampleRate);
+
+    // [3] PLL: Phase 0..1, Inkrement = Baudrate/fs.
+    // Abtastung beim Überlauf (Phase ≥ 1); Tonwechsel werden per
+    // Proportionalregler (Gain 0.18) auf Phase 0.5 gezogen.
+    this.pllPhase = 0;
+    this.pllInc = BAUD / sampleRate;
+    this.pllGain = 0.18;
+    this.lastSign = 0;   // letztes Vorzeichen für Zero-Crossing-Erkennung
+    this.lastTone = 0;   // letzter abgetasteter Ton für NRZI
+
+    // [5] HDLC-Zustand
+    this.ones = 0;         // Zähler aufeinanderfolgender 1en
+    this.frameBits = [];   // gesammelte (entstopfte) Bits des laufenden Frames
+
+    this.samplePos = 0;    // Gesamtzahl verarbeiteter Samples (für Zeitstempel)
+  }
+
+  process(samples) {
+    const N = this.N;
+    for (let i = 0; i < samples.length; i++) {
+      const x = samples[i];
+
+      // ---- [1] Quadratur-Korrelation gegen beide Töne -----------------
+      const pMc = x * Math.cos(this.phM), pMs = x * Math.sin(this.phM);
+      const pSc = x * Math.cos(this.phS), pSs = x * Math.sin(this.phS);
+      this.phM += this.dphM; if (this.phM > 2 * Math.PI) this.phM -= 2 * Math.PI;
+      this.phS += this.dphS; if (this.phS > 2 * Math.PI) this.phS -= 2 * Math.PI;
+
+      // Gleitende Summe: ältesten Wert raus, neuen rein (Ringpuffer)
+      const k = this.idx;
+      this.sumMc += pMc - this.bufMc[k]; this.bufMc[k] = pMc;
+      this.sumMs += pMs - this.bufMs[k]; this.bufMs[k] = pMs;
+      this.sumSc += pSc - this.bufSc[k]; this.bufSc[k] = pSc;
+      this.sumSs += pSs - this.bufSs[k]; this.bufSs[k] = pSs;
+      this.idx = (k + 1) % N;
+
+      // Energien beider Töne aus I/Q; normierte Differenz = weiches Bit,
+      // unabhängig vom Eingangspegel (verhält sich wie eine AGC).
+      const mark  = this.sumMc * this.sumMc + this.sumMs * this.sumMs;
+      const space = this.sumSc * this.sumSc + this.sumSs * this.sumSs;
+      const d = (mark - space) / (mark + space + 1e-12);
+
+      // ---- [2] Tiefpass ----------------------------------------------
+      this.lp += this.lpAlpha * (d - this.lp);
+
+      // ---- [3] Bit-Slicer + PLL --------------------------------------
+      const sign = this.lp > 0 ? 1 : 0;
+      if (sign !== this.lastSign) {
+        // Zero-Crossing = Tonwechsel: PLL-Phase Richtung 0.5 ziehen,
+        // damit die Abtastung (beim Überlauf) in der Bitmitte liegt.
+        this.pllPhase += this.pllGain * (0.5 - this.pllPhase);
+        this.lastSign = sign;
+      }
+      this.pllPhase += this.pllInc;
+      if (this.pllPhase >= 1) {
+        this.pllPhase -= 1;
+        // ---- [4] NRZI: kein Tonwechsel seit letzter Abtastung = 1 ----
+        const bit = (sign === this.lastTone) ? 1 : 0;
+        this.lastTone = sign;
+        this.hdlcBit(bit);
+      }
+      this.samplePos++;
+    }
+  }
+
+  // ---- [5] HDLC-Bitautomat mit Destuffing und Flag-Erkennung ----------
+  hdlcBit(b) {
+    if (b === 1) {
+      this.ones++;
+      if (this.ones > 6) {          // 7× "1" = Abort/ungültig → Frame verwerfen
+        this.frameBits.length = 0;
+        return;
+      }
+      this.frameBits.push(1);
+    } else {
+      if (this.ones === 5) {        // Stopfbit: eingefügte 0 entfernen
+        this.ones = 0;
+        return;
+      }
+      if (this.ones === 6) {        // Flag 0x7E (01111110) → Frame-Ende
+        this.closeFrame();
+        this.ones = 0;
+        return;
+      }
+      if (this.ones > 6) {          // 0 nach Abort: sauber neu aufsetzen
+        this.frameBits.length = 0;
+        this.ones = 0;
+        return;
+      }
+      this.ones = 0;
+      this.frameBits.push(0);
+    }
+  }
+
+  // Frame zwischen zwei Flags schließen. Die letzten 7 gesammelten Bits
+  // (die führende 0 und die sechs 1en des Flags) gehören zum Flag selbst
+  // und werden abgeschnitten.
+  closeFrame() {
+    const bits = this.frameBits;
+    const nb = bits.length - 7;
+    // Plausibilität: Minimalframe = Dest+Src (14) + Control (1) + FCS (2)
+    // = 17 Bytes = 136 Bit, und Byte-Ausrichtung muss stimmen.
+    if (nb >= 136 && nb % 8 === 0) {
+      const len = nb >> 3;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < nb; i++) {
+        if (bits[i]) bytes[i >> 3] |= 1 << (i & 7);   // HDLC: LSB zuerst
+      }
+      // ---- [6] CRC prüfen: übertragen wird der FCS Low-Byte zuerst ----
+      const fcs = bytes[len - 2] | (bytes[len - 1] << 8);
+      const crcOk = crc16x25(bytes, len - 2) === fcs;
+      this.onFrame(bytes, crcOk, this.samplePos);
+    }
+    this.frameBits = [];
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * [7] AX.25-Parser.
+ * Adressfeld: Callsigns als 6 ASCII-Zeichen, jeweils um 1 Bit nach links
+ * geschoben; im 7. Byte steckt die SSID (Bits 1–4), das H-Bit (Bit 7,
+ * "wurde digipeated") und in Bit 0 die Markierung "letztes Adressfeld".
+ * Reihenfolge: Destination, Source, dann bis zu 8 Digipeater.
+ * ------------------------------------------------------------------- */
+function parseAX25(bytes) {
+  const n = bytes.length - 2;               // FCS abschneiden
+  const addrs = [];
+  let i = 0, last = false;
+  while (!last) {
+    if (i + 7 > n || addrs.length >= 10) return null;   // kaputtes Adressfeld
+    let call = '';
+    for (let k = 0; k < 6; k++) {
+      const c = (bytes[i + k] >> 1) & 0x7F;
+      if (c !== 0x20) call += String.fromCharCode(c);
+    }
+    const ss = bytes[i + 6];
+    const ssid = (ss >> 1) & 0x0F;
+    last = (ss & 0x01) === 1;
+    addrs.push({
+      call: call + (ssid ? '-' + ssid : ''),
+      hbit: (ss & 0x80) !== 0                // bereits benutzter Digipeater → "*"
+    });
+    i += 7;
+  }
+  if (addrs.length < 2 || i >= n) return null;
+
+  const control = bytes[i++];
+  let pid = null;
+  // UI-Frame: Control 0x03 (bzw. 0x13 mit gesetztem P/F-Bit) → PID folgt.
+  const isUI = (control & 0xEF) === 0x03;
+  if (isUI && i < n) pid = bytes[i++];
+
+  const info = bytes.slice(i, n);
+  let infoText = '';
+  for (let k = 0; k < info.length; k++) infoText += String.fromCharCode(info[k]);
+
+  return {
+    dest: addrs[0].call,
+    src: addrs[1].call,
+    path: addrs.slice(2).map(a => a.call + (a.hbit ? '*' : '')),
+    control, pid, isUI,
+    info, infoText
+  };
+}
+
+/* ---------------------------------------------------------------------
+ * [8] APRS-Payload-Parser. Der Datentyp steckt im ersten Zeichen des
+ * Info-Felds. Positionen gibt es unkomprimiert (DDMM.mmN/DDDMM.mmE)
+ * und Base91-komprimiert; beide werden nach Dezimalgrad gewandelt.
+ * ------------------------------------------------------------------- */
+
+// Unkomprimierte Position "4812.34N/01122.33E>" — Leerzeichen sind
+// Positions-Ambiguität und werden als '0' gewertet.
+function parsePosUncompressed(s) {
+  const m = s.match(/^([\d ]{2})([\d ]{2}\.[\d ]{2})([NS])(.)([\d ]{3})([\d ]{2}\.[\d ]{2})([EW])(.)/);
+  if (!m) return null;
+  const num = t => parseFloat(t.replace(/ /g, '0'));
+  let lat = num(m[1]) + num(m[2]) / 60;
+  if (m[3] === 'S') lat = -lat;
+  let lon = num(m[5]) + num(m[6]) / 60;
+  if (m[7] === 'W') lon = -lon;
+  return { lat, lon, table: m[4], symbol: m[8], rest: s.slice(m[0].length) };
+}
+
+// Base91-komprimierte Position: /YYYYXXXX$cs  (13 Zeichen)
+function parsePosCompressed(s) {
+  if (s.length < 13) return null;
+  const t = s[0];
+  if (!/^[\/\\A-Za-j]$/.test(t)) return null;
+  const b91 = q => {
+    let v = 0;
+    for (const ch of q) {
+      const c = ch.charCodeAt(0) - 33;
+      if (c < 0 || c > 90) return null;
+      v = v * 91 + c;
+    }
+    return v;
+  };
+  const y = b91(s.slice(1, 5)), x = b91(s.slice(5, 9));
+  if (y === null || x === null) return null;
+  const out = {
+    lat: 90 - y / 380926,
+    lon: -180 + x / 190463,
+    table: t, symbol: s[9], rest: s.slice(13)
+  };
+  // Optionales Kurs/Geschwindigkeits-Paar in den Zeichen 10/11
+  const c = s.charCodeAt(10) - 33, sp = s.charCodeAt(11) - 33;
+  if (s[10] !== ' ' && c >= 0 && c <= 89) {
+    out.course = c * 4;
+    out.speedKmh = (Math.pow(1.08, sp) - 1) * 1.852;
+  }
+  return out;
+}
+
+// Zusatzdaten im Kommentar: Kurs/Geschwindigkeit "CCC/SSS" direkt nach dem
+// Symbol, Höhe "/A=nnnnnn" (Fuß) irgendwo im Text.
+function parseExtensions(rest, out) {
+  const cs = rest.match(/^(\d{3})\/(\d{3})/);
+  if (cs) {
+    out.course = parseInt(cs[1], 10);
+    out.speedKmh = parseInt(cs[2], 10) * 1.852;   // Knoten → km/h
+    rest = rest.slice(7);
+  }
+  const alt = rest.match(/\/A=(\d{6})/);
+  if (alt) {
+    out.altitudeM = Math.round(parseInt(alt[1], 10) * 0.3048);  // Fuß → m
+    rest = rest.replace(alt[0], '');
+  }
+  out.comment = rest.trim();
+  return out;
+}
+
+function parsePosition(s, typeLabel, timestamp) {
+  const p = parsePosUncompressed(s) || parsePosCompressed(s);
+  if (!p) return { type: typeLabel, note: 'Positionsformat nicht erkannt', comment: s };
+  const out = { type: typeLabel, lat: p.lat, lon: p.lon, table: p.table, symbol: p.symbol };
+  if (timestamp) out.timestamp = timestamp;
+  if (p.course !== undefined) { out.course = p.course; out.speedKmh = p.speedKmh; }
+  return parseExtensions(p.rest, out);
+}
+
+// Wetterbericht "_10090556c220s004g005t077r000p000P000h50b09900"
+function parseWeather(body) {
+  const out = { type: 'Wetter' };
+  const ts = body.match(/^(\d{8})/);
+  let rest = body;
+  if (ts) { out.timestamp = ts[1]; rest = body.slice(8); }
+  const map = {
+    c: v => out.windDir = v,
+    s: v => out.windKmh = Math.round(v * 1.609344),      // mph → km/h
+    g: v => out.gustKmh = Math.round(v * 1.609344),
+    t: v => out.tempC = Math.round((v - 32) / 1.8 * 10) / 10,  // °F → °C
+    r: v => out.rain1hMm = Math.round(v * 0.254 * 10) / 10,   // 1/100 in → mm
+    p: v => out.rain24hMm = Math.round(v * 0.254 * 10) / 10,
+    P: v => out.rainMidnightMm = Math.round(v * 0.254 * 10) / 10,
+    h: v => out.humidity = (v === 0 ? 100 : v),
+    b: v => out.baroHpa = v / 10
+  };
+  const re = /([csgtrpPhbLl#])(-?\d+|[.\s]+)/g;
+  let m;
+  while ((m = re.exec(rest)) !== null) {
+    if (/^[.\s]+$/.test(m[2])) continue;                  // "..." = kein Wert
+    const fn = map[m[1]];
+    if (fn) fn(parseInt(m[2], 10));
+  }
+  return out;
+}
+
+function parseAPRS(infoText) {
+  if (!infoText) return { type: 'Leer' };
+  const id = infoText[0];
+  const body = infoText.slice(1);
+  switch (id) {
+    case '!': return parsePosition(body, 'Position', null);
+    case '=': return parsePosition(body, 'Position (mit Messaging)', null);
+    case '/': return parsePosition(body.slice(7), 'Position + Zeit', body.slice(0, 7));
+    case '@': return parsePosition(body.slice(7), 'Position + Zeit (Messaging)', body.slice(0, 7));
+    case ':': {
+      const m = body.match(/^(.{9}):([\s\S]*)$/);
+      if (!m) return { type: 'Message', note: 'Format nicht erkannt', comment: body };
+      const out = { type: 'Message', addressee: m[1].trim() };
+      let text = m[2];
+      const num = text.match(/\{(\S{1,5})$/);
+      if (num) { out.msgNo = num[1]; text = text.slice(0, num.index); }
+      if (/^(ack|rej)\d/.test(text)) out.ack = text;
+      out.message = text;
+      return out;
+    }
+    case '>': return { type: 'Status', status: body };
+    case ';': {
+      const m = body.match(/^(.{9})([*_])(.{7})([\s\S]*)$/);
+      if (!m) return { type: 'Objekt', note: 'Format nicht erkannt', comment: body };
+      const out = parsePosition(m[4], 'Objekt', m[3]);
+      out.type = 'Objekt';
+      out.objectName = m[1].trim();
+      out.objectAlive = m[2] === '*';
+      return out;
+    }
+    case '_': return parseWeather(body);
+    case 'T': {
+      const m = body.match(/^#(\d+|MIC),?([\s\S]*)$/);
+      if (!m) break;
+      const parts = m[2].split(',');
+      return {
+        type: 'Telemetrie',
+        seq: m[1],
+        analog: parts.slice(0, 5).map(v => parseFloat(v)).filter(v => !isNaN(v)),
+        digital: parts[5] || ''
+      };
+    }
+    case '`': case "'":
+      return { type: 'Mic-E', note: 'Mic-E-Positionsformat (Dekodierung nicht implementiert)', comment: body };
+    case '$':
+      return { type: 'Raw NMEA', comment: body };
+  }
+  return { type: 'Sonstiges', comment: infoText };
+}
+
+/* =====================================================================
+ *  Testton-Generator: baut ein AX.25-UI-Frame, kodiert es HDLC + NRZI
+ *  und synthetisiert daraus phasenkontinuierliches AFSK-Audio.
+ *  Damit lässt sich die komplette Empfangskette ohne Funkgerät prüfen.
+ * ===================================================================== */
+
+// AX.25-Frame (inkl. FCS) aus Callsigns + Payload bauen — Spiegelbild
+// des Parsers oben.
+function buildAx25Frame(dest, src, path, infoStr) {
+  const out = [];
+  const pushAddr = (str, last) => {
+    const [call, ssidS] = str.split('-');
+    const ssid = parseInt(ssidS, 10) || 0;
+    const padded = (call.toUpperCase() + '      ').slice(0, 6);
+    for (let i = 0; i < 6; i++) out.push(padded.charCodeAt(i) << 1);
+    out.push(0x60 | ((ssid & 0x0F) << 1) | (last ? 1 : 0));
+  };
+  const all = [dest, src, ...path];
+  all.forEach((a, i) => pushAddr(a, i === all.length - 1));
+  out.push(0x03);   // Control: UI-Frame
+  out.push(0xF0);   // PID: kein Layer 3
+  for (let i = 0; i < infoStr.length; i++) out.push(infoStr.charCodeAt(i) & 0xFF);
+  const crc = crc16x25(out, out.length);
+  out.push(crc & 0xFF, (crc >> 8) & 0xFF);   // FCS Low-Byte zuerst
+  return new Uint8Array(out);
+}
+
+// HDLC-Bitstrom: Präambel-Flags, Daten LSB-zuerst mit Bitstuffing, End-Flags.
+function frameToBits(frame) {
+  const bits = [];
+  const pushFlag = () => bits.push(0, 1, 1, 1, 1, 1, 1, 0);
+  for (let k = 0; k < 32; k++) pushFlag();   // ~180 ms Präambel (TXDelay)
+  let ones = 0;
+  for (const byte of frame) {
+    for (let b = 0; b < 8; b++) {
+      const bit = (byte >> b) & 1;           // LSB zuerst
+      bits.push(bit);
+      if (bit) {
+        if (++ones === 5) { bits.push(0); ones = 0; }   // Stopfbit einfügen
+      } else ones = 0;
+    }
+  }
+  for (let k = 0; k < 4; k++) pushFlag();
+  return bits;
+}
+
+// NRZI + AFSK: logisch 0 → Tonwechsel, logisch 1 → Ton beibehalten.
+// Die Oszillatorphase läuft über Tonwechsel hinweg kontinuierlich weiter
+// (kein Phasensprung — genau wie bei einem echten Bell-202-Modem).
+function afskModulate(bits, fs, amplitude) {
+  const amp = amplitude === undefined ? 0.5 : amplitude;
+  const spb = fs / BAUD;                       // Samples pro Bit (i. d. R. nicht ganzzahlig)
+  const pad = Math.round(fs * 0.05);           // 50 ms Stille vor und nach dem Paket
+  const out = new Float32Array(pad + Math.ceil(bits.length * spb) + pad);
+  let phase = 0, tone = 0, pos = pad;
+  for (let i = 0; i < bits.length; i++) {
+    if (bits[i] === 0) tone ^= 1;              // NRZI-Kodierung
+    const dph = 2 * Math.PI * (tone ? F_SPACE : F_MARK) / fs;
+    const end = pad + Math.round((i + 1) * spb);  // Bruchteil-genaue Bitgrenzen
+    for (; pos < end; pos++) {
+      out[pos] = amp * Math.sin(phase);
+      phase += dph;
+      if (phase > 2 * Math.PI) phase -= 2 * Math.PI;
+    }
+  }
+  return out;
+}
+
+const TEST_PACKET = {
+  dest: 'APRS',
+  src: 'DL1TST-7',
+  path: ['WIDE1-1', 'WIDE2-2'],
+  info: '!4808.90N/01133.70E>090/036/A=001716 AFSK1200-Testpaket'
+};
+
+/* =====================================================================
+ *  UI / Audio-Anbindung
+ * ===================================================================== */
+function initUI() {
+  const $ = id => document.getElementById(id);
+  const els = {
+    stSr: $('stSr'), stFrames: $('stFrames'), stCrc: $('stCrc'),
+    btnMic: $('btnMic'), levelBar: $('levelBar'), levelText: $('levelText'),
+    spec: $('spec'), micError: $('micError'), httpsHint: $('httpsHint'),
+    fileInput: $('fileInput'), fileProg: $('fileProg'), fileStatus: $('fileStatus'),
+    btnTestDecode: $('btnTestDecode'), btnTestPlay: $('btnTestPlay'), testInfo: $('testInfo'),
+    packets: $('packets'), empty: $('empty'),
+    btnExportJson: $('btnExportJson'), btnExportTxt: $('btnExportTxt'), btnClear: $('btnClear')
+  };
+
+  const state = {
+    packets: [],       // dekodierte Pakete (für Anzeige + Export)
+    frames: 0,
+    crcErrors: 0,
+    running: false,
+    ctx: null, stream: null, captureNode: null, analyser: null, demod: null,
+    rafId: 0
+  };
+
+  // ---------------- Hilfsfunktionen ----------------
+  const esc = s => String(s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const printable = s => s.replace(/[\x00-\x1f\x7f]/g, '·');
+
+  function hexdump(bytes) {
+    const lines = [];
+    for (let i = 0; i < bytes.length; i += 16) {
+      const chunk = bytes.slice(i, i + 16);
+      let hex = '', ascii = '';
+      for (let j = 0; j < 16; j++) {
+        if (j < chunk.length) {
+          hex += chunk[j].toString(16).padStart(2, '0') + ' ';
+          ascii += (chunk[j] >= 32 && chunk[j] < 127) ? String.fromCharCode(chunk[j]) : '.';
+        } else hex += '   ';
+        if (j === 7) hex += ' ';
+      }
+      lines.push(i.toString(16).padStart(4, '0') + '  ' + hex + ' ' + ascii);
+    }
+    return lines.join('\n');
+  }
+
+  function updateStatus() {
+    els.stFrames.textContent = state.frames;
+    els.stCrc.textContent = state.crcErrors;
+  }
+
+  function setSampleRate(fs) {
+    els.stSr.textContent = fs ? (fs / 1000).toFixed(1).replace('.0', '') + ' kHz' : '–';
+  }
+
+  function download(name, text, mime) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  // ---------------- Paket empfangen & anzeigen ----------------
+  function onFrameDecoded(bytes, crcOk, samplePos, meta) {
+    if (!crcOk) {
+      state.crcErrors++;      // CRC falsch → verwerfen, nur zählen
+      updateStatus();
+      return;
+    }
+    const ax = parseAX25(bytes);
+    if (!ax) { state.crcErrors++; updateStatus(); return; }
+
+    state.frames++;
+    const aprs = parseAPRS(ax.infoText);
+    const pkt = {
+      time: new Date().toISOString(),
+      source: meta.source,
+      offsetSec: meta.fs ? Math.round(samplePos / meta.fs * 10) / 10 : null,
+      src: ax.src, dest: ax.dest, path: ax.path,
+      control: ax.control, pid: ax.pid,
+      info: printable(ax.infoText),
+      aprs,
+      hex: Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' '),
+      bytes
+    };
+    state.packets.push(pkt);
+    renderPacket(pkt);
+    updateStatus();
+  }
+
+  function renderPacket(pkt) {
+    if (els.empty) els.empty.remove(), els.empty = null;
+    const a = pkt.aprs;
+    const div = document.createElement('div');
+    div.className = 'packet';
+
+    let badges = `<span class="badge ok">CRC OK</span><span class="badge type">${esc(a.type)}</span>`;
+    if (pkt.source === 'Test') badges += `<span class="badge test">TEST</span>`;
+
+    const t = new Date(pkt.time);
+    const timeStr = t.toLocaleTimeString('de-DE') +
+      (pkt.offsetSec !== null && pkt.source === 'Datei' ? ` · @ ${pkt.offsetSec}s` : '');
+
+    let fields = '';
+    const row = (k, v) => `<div><span class="k">${k}:</span> ${v}</div>`;
+    if (a.lat !== undefined) {
+      const lat = a.lat.toFixed(5), lon = a.lon.toFixed(5);
+      fields += row('Position', `<b>${lat}°, ${lon}°</b> <span class="k">(Symbol ${esc(a.table)}${esc(a.symbol || '')})</span>`);
+      if (a.course !== undefined)
+        fields += row('Kurs/Tempo', `${a.course}° · ${Math.round(a.speedKmh)} km/h`);
+      if (a.altitudeM !== undefined) fields += row('Höhe', `${a.altitudeM} m`);
+    }
+    if (a.objectName) fields += row('Objekt', `${esc(a.objectName)}${a.objectAlive ? '' : ' (gelöscht)'}`);
+    if (a.timestamp) fields += row('Zeitstempel', esc(a.timestamp));
+    if (a.addressee) fields += row('An', `<b>${esc(a.addressee)}</b>`);
+    if (a.message !== undefined) fields += row('Text', esc(a.message) + (a.msgNo ? ` <span class="k">{${esc(a.msgNo)}}</span>` : ''));
+    if (a.status) fields += row('Status', esc(a.status));
+    if (a.tempC !== undefined) fields += row('Temperatur', `${a.tempC} °C`);
+    if (a.windKmh !== undefined) fields += row('Wind', `${a.windKmh} km/h${a.windDir !== undefined ? ' aus ' + a.windDir + '°' : ''}${a.gustKmh ? ', Böen ' + a.gustKmh : ''}`);
+    if (a.humidity !== undefined) fields += row('Luftfeuchte', `${a.humidity} %`);
+    if (a.baroHpa !== undefined) fields += row('Luftdruck', `${a.baroHpa} hPa`);
+    if (a.rain1hMm !== undefined) fields += row('Regen (1h)', `${a.rain1hMm} mm`);
+    if (a.seq !== undefined) fields += row('Telemetrie', `#${esc(a.seq)} · [${a.analog.join(', ')}] · ${esc(a.digital)}`);
+    if (a.comment) fields += row('Kommentar', esc(a.comment));
+    if (a.note) fields += row('Hinweis', esc(a.note));
+
+    let links = '';
+    const baseCall = pkt.src.replace(/\*$/, '');
+    links += `<a href="https://aprs.fi/#!call=${encodeURIComponent(baseCall)}" target="_blank" rel="noopener">aprs.fi</a>`;
+    if (a.lat !== undefined) {
+      links += `<a href="https://www.openstreetmap.org/?mlat=${a.lat.toFixed(5)}&mlon=${a.lon.toFixed(5)}#map=13/${a.lat.toFixed(5)}/${a.lon.toFixed(5)}" target="_blank" rel="noopener">OpenStreetMap</a>`;
+    }
+
+    div.innerHTML =
+      `<div class="top"><span class="time">${esc(timeStr)}</span>${badges}</div>` +
+      `<div class="route"><span class="src">${esc(pkt.src)}</span>&gt;<span class="dst">${esc(pkt.dest)}</span>` +
+      (pkt.path.length ? `<span class="via"> via ${esc(pkt.path.join(','))}</span>` : '') + `</div>` +
+      `<div class="fields">${fields}</div>` +
+      `<div class="payload">${esc(pkt.info)}</div>` +
+      `<div class="links">${links}</div>` +
+      `<details><summary>Roh-Hexdump (${pkt.bytes.length} Bytes)</summary><pre>${esc(hexdump(pkt.bytes))}</pre></details>`;
+    els.packets.prepend(div);
+  }
+
+  // ---------------- Tabs ----------------
+  document.querySelectorAll('#tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b === btn));
+      ['live', 'file', 'test'].forEach(t =>
+        $('panel-' + t).classList.toggle('hidden', t !== btn.dataset.tab));
+    });
+  });
+
+  // ---------------- Live-Modus (Mikrofon) ----------------
+  if (!window.isSecureContext) els.httpsHint.classList.remove('hidden');
+
+  function getCtx() {
+    if (!state.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      state.ctx = new AC();
+      setSampleRate(state.ctx.sampleRate);
+    }
+    return state.ctx;
+  }
+
+  async function startMic() {
+    els.micError.classList.add('hidden');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showMicError('getUserMedia wird von diesem Browser nicht unterstützt.');
+      return;
+    }
+    let stream;
+    try {
+      // Signalverarbeitung des Browsers ausschalten — Echo-/Rausch-
+      // Unterdrückung und AGC verzerren das AFSK-Signal massiv.
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+    } catch (e) {
+      showMicError(
+        e.name === 'NotAllowedError' ? 'Mikrofonzugriff wurde verweigert. Bitte in den Browser-Einstellungen erlauben.' :
+        e.name === 'NotFoundError' ? 'Kein Mikrofon gefunden.' :
+        'Mikrofonzugriff fehlgeschlagen: ' + e.message);
+      return;
+    }
+    const ctx = getCtx();
+    await ctx.resume();
+    state.stream = stream;
+    state.demod = new AFSKDemodulator(ctx.sampleRate,
+      (b, ok, pos) => onFrameDecoded(b, ok, pos, { source: 'Live', fs: ctx.sampleRate }));
+
+    const src = ctx.createMediaStreamSource(stream);
+    state.analyser = ctx.createAnalyser();
+    state.analyser.fftSize = 4096;
+    state.analyser.smoothingTimeConstant = 0.5;
+    src.connect(state.analyser);
+
+    // Samples in den Main-Thread holen: bevorzugt per AudioWorklet
+    // (Blob-Modul, gebündelt zu ~4k-Blöcken), sonst ScriptProcessor.
+    if (ctx.audioWorklet) {
+      const code = `
+        class CaptureProcessor extends AudioWorkletProcessor {
+          constructor() { super(); this.buf = new Float32Array(4096); this.n = 0; }
+          process(inputs) {
+            const ch = inputs[0] && inputs[0][0];
+            if (ch) {
+              this.buf.set(ch, this.n); this.n += ch.length;
+              if (this.n + 128 > this.buf.length) {
+                this.port.postMessage(this.buf.slice(0, this.n)); this.n = 0;
+              }
+            }
+            return true;
+          }
+        }
+        registerProcessor('capture', CaptureProcessor);`;
+      const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+      await ctx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      const node = new AudioWorkletNode(ctx, 'capture', { numberOfOutputs: 0 });
+      node.port.onmessage = e => handleChunk(e.data);
+      src.connect(node);
+      state.captureNode = node;
+    } else {
+      const node = ctx.createScriptProcessor(4096, 1, 1);
+      node.onaudioprocess = e => handleChunk(e.inputBuffer.getChannelData(0));
+      src.connect(node);
+      const mute = ctx.createGain(); mute.gain.value = 0;   // nötig, damit der Node läuft
+      node.connect(mute); mute.connect(ctx.destination);
+      state.captureNode = node;
+    }
+
+    state.running = true;
+    els.btnMic.textContent = 'Stoppen';
+    els.btnMic.classList.add('stop');
+    drawLoop();
+  }
+
+  function stopMic() {
+    state.running = false;
+    cancelAnimationFrame(state.rafId);
+    if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+    if (state.captureNode) { try { state.captureNode.disconnect(); } catch (e) {} }
+    state.stream = null; state.captureNode = null; state.analyser = null;
+    els.btnMic.textContent = 'Mikrofon starten';
+    els.btnMic.classList.remove('stop');
+    els.levelBar.style.width = '0%';
+    els.levelText.textContent = 'Pegel: –';
+  }
+
+  function showMicError(msg) {
+    els.micError.textContent = '⚠️ ' + msg;
+    els.micError.classList.remove('hidden');
+  }
+
+  els.btnMic.addEventListener('click', () => state.running ? stopMic() : startMic());
+
+  // Pegelmessung (RMS + Spitzenwert) je Audio-Block, mit Warnungen
+  let levelSmooth = 0;
+  function handleChunk(samples) {
+    if (state.demod) state.demod.process(samples);
+    let sum = 0, peak = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const v = samples[i];
+      sum += v * v;
+      const av = Math.abs(v);
+      if (av > peak) peak = av;
+    }
+    const rms = Math.sqrt(sum / samples.length);
+    levelSmooth = Math.max(rms, levelSmooth * 0.85);
+    const pct = Math.min(100, levelSmooth * 300);
+    els.levelBar.style.width = pct + '%';
+    els.levelBar.className = 'bar' + (peak > 0.95 ? ' hot' : (rms < 0.004 ? ' low' : ''));
+    els.levelText.textContent =
+      peak > 0.95 ? '⚠️ Übersteuerung! Lautstärke/Abstand reduzieren.' :
+      rms < 0.004 ? '⚠️ Signal sehr leise — näher ans Funkgerät oder lauter drehen.' :
+      `Pegel OK · RMS ${(20 * Math.log10(rms)).toFixed(0)} dBFS`;
+  }
+
+  // Frequenzanalyse-Anzeige: Spektrum 0–3000 Hz mit farbigen Markern
+  // bei 1200 Hz (Mark, grün) und 2200 Hz (Space, gelb).
+  function drawLoop() {
+    if (!state.running || !state.analyser) return;
+    const canvas = els.spec;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+    const g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const an = state.analyser;
+    const data = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(data);
+    const fs = state.ctx.sampleRate;
+    const maxF = 3000;
+    const maxBin = Math.min(data.length - 1, Math.ceil(maxF / (fs / 2) * data.length));
+
+    g.fillStyle = '#0e141c';
+    g.fillRect(0, 0, w, h);
+
+    // Spektrum als Fläche
+    g.beginPath();
+    g.moveTo(0, h);
+    for (let b = 0; b <= maxBin; b++) {
+      const x = b / maxBin * w;
+      const y = h - (data[b] / 255) * (h - 14);
+      g.lineTo(x, y);
+    }
+    g.lineTo(w, h);
+    g.closePath();
+    g.fillStyle = 'rgba(125,211,252,.25)';
+    g.fill();
+    g.strokeStyle = '#7dd3fc';
+    g.lineWidth = 1;
+    g.stroke();
+
+    // Marker für die beiden AFSK-Töne
+    const marker = (f, color, label) => {
+      const x = f / maxF * w;
+      g.strokeStyle = color;
+      g.lineWidth = 1.5;
+      g.setLineDash([4, 3]);
+      g.beginPath(); g.moveTo(x, 12); g.lineTo(x, h); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = color;
+      g.font = '10px ' + 'monospace';
+      g.fillText(label, x - 20, 10);
+    };
+    marker(F_MARK, '#4ade80', '1200 Hz');
+    marker(F_SPACE, '#fbbf24', '2200 Hz');
+
+    state.rafId = requestAnimationFrame(drawLoop);
+  }
+
+  // ---------------- Datei-Modus ----------------
+  els.fileInput.addEventListener('change', async () => {
+    const file = els.fileInput.files[0];
+    if (!file) return;
+    els.fileProg.style.width = '0%';
+    if (file.size === 0) {
+      els.fileStatus.textContent = '⚠️ Die Datei ist leer.';
+      els.fileStatus.className = 'hint error';
+      return;
+    }
+    els.fileStatus.textContent = 'Dekodiere „' + file.name + '“ …';
+    els.fileStatus.className = 'hint';
+    try {
+      const buf = await file.arrayBuffer();
+      const ctx = getCtx();
+      // decodeAudioData resampelt automatisch auf die Kontext-Samplerate
+      const audio = await new Promise((res, rej) => {
+        const p = ctx.decodeAudioData(buf, res, rej);
+        if (p && p.then) p.then(res, rej);
+      });
+      if (!audio || audio.length === 0) throw new Error('Datei enthält kein Audio.');
+
+      // Mehrkanal → Mono mischen
+      const mono = new Float32Array(audio.length);
+      for (let c = 0; c < audio.numberOfChannels; c++) {
+        const d = audio.getChannelData(c);
+        for (let i = 0; i < d.length; i++) mono[i] += d[i] / audio.numberOfChannels;
+      }
+
+      const before = state.frames;
+      const demod = new AFSKDemodulator(audio.sampleRate,
+        (b, ok, pos) => onFrameDecoded(b, ok, pos, { source: 'Datei', fs: audio.sampleRate }));
+
+      // In Blöcken dekodieren, damit die UI responsiv bleibt
+      const CHUNK = 262144;
+      for (let off = 0; off < mono.length; off += CHUNK) {
+        demod.process(mono.subarray(off, Math.min(off + CHUNK, mono.length)));
+        els.fileProg.style.width = Math.round((off + CHUNK) / mono.length * 100) + '%';
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      els.fileProg.style.width = '100%';
+      const found = state.frames - before;
+      els.fileStatus.textContent = found > 0
+        ? `✅ Fertig: ${found} Paket${found === 1 ? '' : 'e'} dekodiert (${Math.round(audio.duration)} s Audio).`
+        : `Fertig — kein gültiges Paket gefunden (${Math.round(audio.duration)} s Audio). Tipp: unkomprimiertes WAV liefert die besten Ergebnisse.`;
+    } catch (e) {
+      els.fileStatus.textContent = '⚠️ Datei konnte nicht dekodiert werden — Format nicht unterstützt? (' + (e.message || e) + ')';
+      els.fileStatus.className = 'hint error';
+    }
+    els.fileInput.value = '';
+  });
+
+  // ---------------- Test-Modus ----------------
+  els.testInfo.textContent =
+    'Testpaket:\n' + TEST_PACKET.src + '>' + TEST_PACKET.dest + ',' +
+    TEST_PACKET.path.join(',') + '\n' + TEST_PACKET.info;
+
+  els.btnTestDecode.addEventListener('click', () => {
+    // Komplette Kette offline: Frame bauen → HDLC → NRZI → AFSK →
+    // durch den Demodulator zurück. Erscheint das Paket in der Liste
+    // mit CRC OK, funktioniert die gesamte Empfangsseite.
+    const fs = 48000;
+    const frame = buildAx25Frame(TEST_PACKET.dest, TEST_PACKET.src, TEST_PACKET.path, TEST_PACKET.info);
+    const signal = afskModulate(frameToBits(frame), fs);
+    const before = state.frames;
+    const demod = new AFSKDemodulator(fs,
+      (b, ok, pos) => onFrameDecoded(b, ok, pos, { source: 'Test', fs }));
+    demod.process(signal);
+    els.testInfo.textContent = (state.frames > before
+      ? '✅ Testpaket erfolgreich durch die komplette DSP-Kette dekodiert!\n\n'
+      : '❌ Testpaket wurde NICHT dekodiert — das wäre ein Bug.\n\n') +
+      TEST_PACKET.src + '>' + TEST_PACKET.dest + ',' + TEST_PACKET.path.join(',') +
+      '\n' + TEST_PACKET.info;
+  });
+
+  els.btnTestPlay.addEventListener('click', async () => {
+    const ctx = getCtx();
+    await ctx.resume();
+    const frame = buildAx25Frame(TEST_PACKET.dest, TEST_PACKET.src, TEST_PACKET.path, TEST_PACKET.info);
+    const signal = afskModulate(frameToBits(frame), ctx.sampleRate);
+    const buf = ctx.createBuffer(1, signal.length, ctx.sampleRate);
+    buf.copyToChannel(signal, 0);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    if (state.analyser) src.connect(state.analyser);   // im Spektrum sichtbar machen
+    src.connect(ctx.destination);
+    src.start();
+  });
+
+  // ---------------- Export / Leeren ----------------
+  els.btnExportJson.addEventListener('click', () => {
+    const data = state.packets.map(p => ({
+      time: p.time, source: p.source, offsetSec: p.offsetSec,
+      src: p.src, dest: p.dest, path: p.path,
+      control: p.control, pid: p.pid, info: p.info, aprs: p.aprs, hex: p.hex
+    }));
+    download('aprs-session.json', JSON.stringify(data, null, 2), 'application/json');
+  });
+
+  els.btnExportTxt.addEventListener('click', () => {
+    const lines = state.packets.map(p => {
+      const route = p.src + '>' + p.dest + (p.path.length ? ',' + p.path.join(',') : '');
+      let extra = '';
+      if (p.aprs.lat !== undefined)
+        extra = `  [${p.aprs.lat.toFixed(5)}, ${p.aprs.lon.toFixed(5)}]`;
+      return `${p.time}  ${route}: ${p.info}${extra}`;
+    });
+    download('aprs-session.txt', lines.join('\n') + '\n', 'text/plain');
+  });
+
+  els.btnClear.addEventListener('click', () => {
+    state.packets = [];
+    state.frames = 0;
+    state.crcErrors = 0;
+    updateStatus();
+    els.packets.innerHTML = '<div id="empty">Noch keine Pakete dekodiert.</div>';
+    els.empty = document.getElementById('empty');
+  });
+}
+
+// Im Browser: UI starten. Unter Node (Tests): DSP-Kern exportieren.
+if (typeof document !== 'undefined') initUI();
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    AFSKDemodulator, crc16x25, parseAX25, parseAPRS,
+    buildAx25Frame, frameToBits, afskModulate, TEST_PACKET
+  };
+}
+</script>
+</body>
+</html>
