@@ -275,6 +275,11 @@ class AFSKDemodulator {
     this.fs = sampleRate;
     this.onFrame = onFrame;
 
+    // [0] DC-Sperre (1-Pol-Hochpass, ~150 Hz): echte Mikrofone liefern
+    // DC-Offset und tieffrequentes Rumpeln — beides stört die Korrelation.
+    this.dcR = 1 - (2 * Math.PI * 150 / sampleRate);
+    this.dcX = 0; this.dcY = 0;
+
     // [1] Korrelationsfenster: genau eine Bitdauer.
     this.N = Math.max(4, Math.round(sampleRate / BAUD));
     this.bufMc = new Float32Array(this.N);  // Ringpuffer der Produkte
@@ -312,7 +317,10 @@ class AFSKDemodulator {
   process(samples) {
     const N = this.N;
     for (let i = 0; i < samples.length; i++) {
-      const x = samples[i];
+      // ---- [0] DC-Sperre: y[n] = x[n] − x[n−1] + R·y[n−1] -------------
+      const x0 = samples[i];
+      const x = x0 - this.dcX + this.dcR * this.dcY;
+      this.dcX = x0; this.dcY = x;
 
       // ---- [1] Quadratur-Korrelation gegen beide Töne -----------------
       const pMc = x * Math.cos(this.phM), pMs = x * Math.sin(this.phM);
@@ -705,8 +713,9 @@ function initUI() {
     frames: 0,
     crcErrors: 0,
     running: false,
-    ctx: null, stream: null, captureNode: null, analyser: null, demod: null,
-    rafId: 0
+    ctx: null, stream: null, srcNode: null, captureNode: null, muteNode: null,
+    analyser: null, demod: null, workletReady: false,
+    rafId: 0, watchdog: 0, chunkCount: 0
   };
 
   // ---------------- Hilfsfunktionen ----------------
@@ -858,6 +867,13 @@ function initUI() {
       showMicError('getUserMedia wird von diesem Browser nicht unterstützt.');
       return;
     }
+    // WICHTIG (iOS Safari): AudioContext SYNCHRON im Klick-Handler anlegen
+    // und resume() noch vor dem ersten await aufrufen — nach einem await
+    // zählt die User-Geste nicht mehr und der Kontext bliebe suspendiert
+    // (Folge: Spektrum/Pegel eingefroren, keine Pakete).
+    const ctx = getCtx();
+    const resumed = ctx.resume();
+
     let stream;
     try {
       // Signalverarbeitung des Browsers ausschalten — Echo-/Rausch-
@@ -872,53 +888,84 @@ function initUI() {
         'Mikrofonzugriff fehlgeschlagen: ' + e.message);
       return;
     }
-    const ctx = getCtx();
-    await ctx.resume();
-    state.stream = stream;
-    state.demod = new AFSKDemodulator(ctx.sampleRate,
-      (b, ok, pos) => onFrameDecoded(b, ok, pos, { source: 'Live', fs: ctx.sampleRate }));
 
-    const src = ctx.createMediaStreamSource(stream);
-    state.analyser = ctx.createAnalyser();
-    state.analyser.fftSize = 4096;
-    state.analyser.smoothingTimeConstant = 0.5;
-    src.connect(state.analyser);
+    try {
+      await resumed;
+      state.stream = stream;
+      state.demod = new AFSKDemodulator(ctx.sampleRate,
+        (b, ok, pos) => onFrameDecoded(b, ok, pos, { source: 'Live', fs: ctx.sampleRate }));
 
-    // Samples in den Main-Thread holen: bevorzugt per AudioWorklet
-    // (Blob-Modul, gebündelt zu ~4k-Blöcken), sonst ScriptProcessor.
-    if (ctx.audioWorklet) {
-      const code = `
-        class CaptureProcessor extends AudioWorkletProcessor {
-          constructor() { super(); this.buf = new Float32Array(4096); this.n = 0; }
-          process(inputs) {
-            const ch = inputs[0] && inputs[0][0];
-            if (ch) {
-              this.buf.set(ch, this.n); this.n += ch.length;
-              if (this.n + 128 > this.buf.length) {
-                this.port.postMessage(this.buf.slice(0, this.n)); this.n = 0;
+      const src = ctx.createMediaStreamSource(stream);
+      state.srcNode = src;
+      state.analyser = ctx.createAnalyser();
+      state.analyser.fftSize = 4096;
+      state.analyser.smoothingTimeConstant = 0.5;
+      src.connect(state.analyser);
+
+      // Samples in den Main-Thread holen: bevorzugt per AudioWorklet
+      // (Blob-Modul, gebündelt zu ~4k-Blöcken), sonst ScriptProcessor.
+      let usedWorklet = false;
+      if (ctx.audioWorklet) {
+        try {
+          // Das Modul darf pro Kontext nur EINMAL registriert werden —
+          // ein zweites addModule (Stop → erneuter Start) würde mit
+          // "already registered" fehlschlagen.
+          if (!state.workletReady) {
+            const code = `
+              class CaptureProcessor extends AudioWorkletProcessor {
+                constructor() { super(); this.buf = new Float32Array(4096); this.n = 0; }
+                process(inputs) {
+                  const ch = inputs[0] && inputs[0][0];
+                  if (ch) {
+                    this.buf.set(ch, this.n); this.n += ch.length;
+                    if (this.n + 128 > this.buf.length) {
+                      this.port.postMessage(this.buf.slice(0, this.n)); this.n = 0;
+                    }
+                  }
+                  return true;   // Ausgang bleibt Stille
+                }
               }
-            }
-            return true;
+              registerProcessor('capture', CaptureProcessor);`;
+            const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+            await ctx.audioWorklet.addModule(url);
+            URL.revokeObjectURL(url);
+            state.workletReady = true;
           }
-        }
-        registerProcessor('capture', CaptureProcessor);`;
-      const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
-      await ctx.audioWorklet.addModule(url);
-      URL.revokeObjectURL(url);
-      const node = new AudioWorkletNode(ctx, 'capture', { numberOfOutputs: 0 });
-      node.port.onmessage = e => handleChunk(e.data);
-      src.connect(node);
-      state.captureNode = node;
-    } else {
-      const node = ctx.createScriptProcessor(4096, 1, 1);
-      node.onaudioprocess = e => handleChunk(e.inputBuffer.getChannelData(0));
-      src.connect(node);
-      const mute = ctx.createGain(); mute.gain.value = 0;   // nötig, damit der Node läuft
-      node.connect(mute); mute.connect(ctx.destination);
-      state.captureNode = node;
+          const node = new AudioWorkletNode(ctx, 'capture');
+          node.port.onmessage = e => handleChunk(e.data);
+          src.connect(node);
+          // Stumm an die Destination hängen: WebKit verarbeitet nur
+          // Knoten, die (indirekt) am Ausgabegraphen hängen — ohne diese
+          // Verbindung liefe der Capture-Worklet auf iOS nie.
+          const mute = ctx.createGain(); mute.gain.value = 0;
+          node.connect(mute); mute.connect(ctx.destination);
+          state.captureNode = node; state.muteNode = mute;
+          usedWorklet = true;
+        } catch (e) { /* Fallback unten */ }
+      }
+      if (!usedWorklet) {
+        const node = ctx.createScriptProcessor(4096, 1, 1);
+        node.onaudioprocess = e => handleChunk(e.inputBuffer.getChannelData(0));
+        src.connect(node);
+        const mute = ctx.createGain(); mute.gain.value = 0;   // nötig, damit der Node läuft
+        node.connect(mute); mute.connect(ctx.destination);
+        state.captureNode = node; state.muteNode = mute;
+      }
+    } catch (e) {
+      stream.getTracks().forEach(t => t.stop());
+      showMicError('Audio-Setup fehlgeschlagen: ' + (e.message || e));
+      return;
     }
 
     state.running = true;
+    state.chunkCount = 0;
+    // Watchdog: kommt nach 2,5 s kein einziger Audio-Block an, stimmt
+    // etwas mit der Aufnahme (Berechtigung, anderes Programm, Routing).
+    state.watchdog = setTimeout(() => {
+      if (state.running && state.chunkCount === 0) {
+        showMicError('Es kommen keine Audiodaten an. Blockiert eine andere App das Mikrofon? Ggf. Seite neu laden.');
+      }
+    }, 2500);
     els.btnMic.textContent = 'Stoppen';
     els.btnMic.classList.add('stop');
     drawLoop();
@@ -927,9 +974,22 @@ function initUI() {
   function stopMic() {
     state.running = false;
     cancelAnimationFrame(state.rafId);
+    clearTimeout(state.watchdog);
     if (state.stream) state.stream.getTracks().forEach(t => t.stop());
-    if (state.captureNode) { try { state.captureNode.disconnect(); } catch (e) {} }
-    state.stream = null; state.captureNode = null; state.analyser = null;
+    // Wichtig: auch die QUELLE trennen und die Callbacks lösen —
+    // disconnect() am Capture-Knoten kappt nur dessen Ausgänge, die alte
+    // Kette (Quelle → Capture) liefe sonst weiter und würde Stille-Blöcke
+    // zwischen die Samples eines späteren Neustarts mischen.
+    if (state.srcNode) { try { state.srcNode.disconnect(); } catch (e) {} }
+    if (state.captureNode) {
+      try { state.captureNode.disconnect(); } catch (e) {}
+      if (state.captureNode.port) state.captureNode.port.onmessage = null;
+      if ('onaudioprocess' in state.captureNode) state.captureNode.onaudioprocess = null;
+    }
+    if (state.muteNode) { try { state.muteNode.disconnect(); } catch (e) {} }
+    state.stream = null; state.srcNode = null; state.captureNode = null; state.muteNode = null;
+    state.analyser = null; state.demod = null;
+    levelSmooth = 0;
     els.btnMic.textContent = 'Mikrofon starten';
     els.btnMic.classList.remove('stop');
     els.levelBar.style.width = '0%';
@@ -946,6 +1006,8 @@ function initUI() {
   // Pegelmessung (RMS + Spitzenwert) je Audio-Block, mit Warnungen
   let levelSmooth = 0;
   function handleChunk(samples) {
+    if (!state.running) return;   // Nachzügler eines gestoppten Knotens ignorieren
+    state.chunkCount++;
     if (state.demod) state.demod.process(samples);
     let sum = 0, peak = 0;
     for (let i = 0; i < samples.length; i++) {
