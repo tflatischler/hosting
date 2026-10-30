@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Christbaum-Finder</title>
+<meta name="description" content="Markierte Christbäume im Wald per GPS wiederfinden.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎄</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%231E3A2B%22/><text x=%2250%22 y=%2272%22 font-size=%2266%22 text-anchor=%22middle%22>🎄</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7EEE8;--surface:#F7FAF7;--ink:#13261B;--muted:#56695C;--line:#BFD0C3;--signal:#C8203A;--ok:#1E7A45;--pine:#1E3A2B;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0D1712;--surface:#15231B;--ink:#E3EDE5;--muted:#86A08E;--line:#29402F;--signal:#F04A5E;--ok:#45C67A;--pine:#7FC296;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#0D1712;--surface:#15231B;--ink:#E3EDE5;--muted:#86A08E;--line:#29402F;--signal:#F04A5E;--ok:#45C67A;--pine:#7FC296;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font:400 16px/1.4 Barlow,system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:440px;margin:0 auto;padding:16px 18px 24px;display:flex;flex-direction:column;gap:18px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+.target{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.target-show{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;background:none;border:0;padding:0;text-align:left}
+.target-show small{display:block;color:var(--muted);font-size:13px}
+.target-show strong{font:600 21px/1.15 "Barlow Condensed",sans-serif;letter-spacing:.01em}
+.target-show span.edit{color:var(--signal);font-weight:600;font-size:15px;flex:none}
+.target-edit{display:flex;flex-direction:column;gap:10px}
+.target-edit label{font-size:13px;color:var(--muted)}
+.target-edit input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font:500 18px "Barlow Condensed",sans-serif}
+.row{display:flex;gap:8px}
+.btn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:transparent;font-weight:600}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:#fff}
+.err{color:var(--signal);font-size:14px;margin:0;min-height:0}
+.hidden{display:none!important}
+header h1{margin:0;font:600 30px/1 "Barlow Condensed",sans-serif;color:var(--pine);display:flex;align-items:center;gap:8px}
+.trees{list-style:none;margin:4px 0 0;padding:0;border-top:1px solid var(--line)}
+.trees li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.trees li button.pick{flex:1;background:none;border:0;padding:10px 0;text-align:left}
+.trees li button.pick b{display:block;font-weight:600}
+.trees li button.pick span{color:var(--muted);font-size:13px}
+.trees li.active button.pick b{color:var(--signal)}
+.trees li button.del{background:none;border:0;color:var(--muted);font-size:22px;padding:6px 10px}
+.mark{width:100%;padding:14px;border-radius:12px;border:0;background:var(--pine);color:var(--bg);font:600 19px "Barlow Condensed",sans-serif}
+
+.dial-wrap{position:relative;width:100%;aspect-ratio:1;max-width:360px;margin:0 auto}
+svg.dial{width:100%;height:100%;display:block;overflow:visible}
+.rose,.needle{transform-origin:0 0;will-change:transform}
+.tick{stroke:var(--muted)}
+.tick.major{stroke:var(--ink);stroke-width:1.6}
+.cardinal{font:600 15px "Barlow Condensed",sans-serif;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.cardinal.n{fill:var(--signal)}
+.lubber{fill:var(--ink)}
+.needle path{fill:var(--signal)}
+.needle .tail{fill:var(--line)}
+.hub{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.arrived .needle{opacity:0}
+.arrived .ring{stroke:var(--ok);animation:pulse 1.6s ease-out infinite}
+.ring{fill:none;stroke:transparent;stroke-width:3}
+@keyframes pulse{0%{stroke-opacity:1}100%{stroke-opacity:.15}}
+@media (prefers-reduced-motion:reduce){.arrived .ring{animation:none}}
+
+.readout{text-align:center}
+.dist{font:600 clamp(64px,22vw,96px)/.9 "Barlow Condensed",sans-serif;letter-spacing:-.01em}
+.dist.ok{color:var(--ok)}
+.dir{font:500 22px "Barlow Condensed",sans-serif;color:var(--muted);margin-top:6px}
+
+.me{border-top:1px solid var(--line);padding-top:14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:baseline}
+.me .coords{font:500 19px/1.25 "Barlow Condensed",sans-serif}
+.me .acc{color:var(--muted);font-size:14px;text-align:right}
+.status{grid-column:1/-1;color:var(--muted);font-size:14px}
+.status.bad{color:var(--signal)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions .btn,.actions a.btn{flex:1 1 40%;text-align:center;text-decoration:none;display:inline-block}
+</style>
+</head>
+<body>
+<main>
+  <header><h1><span aria-hidden="true">🎄</span>Christbaum-Finder</h1></header>
+  <section class="target" aria-label="Baum">
+    <button class="target-show" id="showTarget" type="button">
+      <span><small id="treeName">Baum</small><strong id="targetText">Noch kein Baum markiert</strong></span>
+      <span class="edit">Bäume</span>
+    </button>
+    <div class="target-edit hidden" id="editTarget">
+      <button class="mark" id="hereBtn" type="button">Hier steht mein Baum</button>
+      <label for="nameIn">Name (optional)</label>
+      <input id="nameIn" autocomplete="off" placeholder="z. B. Nordmanntanne am Hang">
+      <label for="coordIn">Oder Koordinaten eingeben</label>
+      <input id="coordIn" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="N 47°42.7953′ O 016°19.5124′">
+      <p class="err" id="parseErr"></p>
+      <div class="row">
+        <button class="btn primary" id="setBtn" type="button">Baum speichern</button>
+        <button class="btn" id="closeBtn" type="button">Fertig</button>
+      </div>
+      <ul class="trees" id="trees"></ul>
+    </div>
+  </section>
+
+  <div class="dial-wrap" id="dialWrap">
+    <svg class="dial" viewBox="-100 -100 200 200" aria-hidden="true">
+      <circle class="ring" r="96"/>
+      <g class="rose" id="rose"></g>
+      <path class="lubber" d="M0,-99 L-6,-89 L6,-89 Z"/>
+      <g class="needle" id="needle">
+        <path class="tail" d="M-5,0 L0,46 L5,0 Z"/>
+        <path d="M0,-70 L-11,-44 L-4,-46 L-5,0 L5,0 L4,-46 L11,-44 Z"/>
+      </g>
+      <circle class="hub" r="6"/>
+    </svg>
+  </div>
+
+  <div class="readout" aria-live="polite">
+    <div class="dist" id="dist">–</div>
+    <div class="dir" id="dir">Baum markieren</div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="compassBtn" type="button">Kompass aktivieren</button>
+    <a class="btn hidden" id="mapsLink" target="_blank" rel="noopener">In Karten öffnen</a>
+  </div>
+
+  <section class="me" aria-label="Eigene Position">
+    <div class="coords" id="myPos">Warte auf GPS …</div>
+    <div class="acc" id="acc"></div>
+    <div class="status" id="status"></div>
+    <div class="status bad" id="cstatus"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'christbaum-baeume';
+let trees = [], activeId = null;
+let target = null, pos = null, heading = null;
+let shownNeedle = 0, shownRose = 0;
+let rawHeading = null, compassAcc = null, offset = 0, smS = 0, smC = 1, tgtBearing = null, lastTxt = 0;
+
+/* ---------- Kompassrose ---------- */
+(function buildRose(){
+  const ns = 'http://www.w3.org/2000/svg', g = $('rose');
+  for (let a = 0; a < 360; a += 5) {
+    const major = a % 30 === 0, r1 = 92, r2 = major ? 80 : 86;
+    const rad = a * Math.PI / 180, s = Math.sin(rad), c = -Math.cos(rad);
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', r1*s); l.setAttribute('y1', r1*c);
+    l.setAttribute('x2', r2*s); l.setAttribute('y2', r2*c);
+    l.setAttribute('class', 'tick' + (major ? ' major' : ''));
+    g.appendChild(l);
+  }
+  [['N',0],['O',90],['S',180],['W',270]].forEach(([t,a])=>{
+    const rad = a*Math.PI/180, x = 68*Math.sin(rad), y = -68*Math.cos(rad);
+    const tx = document.createElementNS(ns,'text');
+    tx.setAttribute('x',x); tx.setAttribute('y',y);
+    tx.setAttribute('class','cardinal'+(t==='N'?' n':''));
+    tx.setAttribute('transform',`rotate(${a} ${x} ${y})`);
+    tx.textContent = t; g.appendChild(tx);
+  });
+})();
+
+/* ---------- Koordinaten parsen ---------- */
+function parseCoords(input){
+  let s = input.toUpperCase().replace(/\bOST\b|\bO\b(?=[\s\d])|(?<=[\d°′'"″\s])O\b/g,'E')
+                             .replace(/\bEAST\b/g,'E').replace(/\bNORD\b/g,'N').replace(/\bSÜD\b|\bSUED\b/g,'S');
+  const tokens = s.match(/[NSEW]|-?\d+(?:[.,]\d+)?/g);
+  if (!tokens) return null;
+  const num = t => parseFloat(t.replace(',','.'));
+  const hasLetters = tokens.some(t => /[NSEW]/.test(t));
+  const coords = [];
+  if (!hasLetters) {
+    const n = tokens.map(num);
+    const per = n.length / 2;
+    if (![1,2,3].includes(per)) return null;
+    coords.push({h:null,n:n.slice(0,per)}, {h:null,n:n.slice(per)});
+  } else {
+    let cur = {h:null,n:[]};
+    for (const t of tokens) {
+      if (/[NSEW]/.test(t)) {
+        if (cur.n.length && cur.h) { coords.push(cur); cur = {h:t,n:[]}; }
+        else if (cur.n.length) { cur.h = t; coords.push(cur); cur = {h:null,n:[]}; }
+        else cur.h = t;
+      } else cur.n.push(num(t));
+    }
+    if (cur.n.length) coords.push(cur);
+  }
+  if (coords.length !== 2) return null;
+  const toDec = c => {
+    if (c.n.length < 1 || c.n.length > 3) return NaN;
+    const [d, m = 0, sec = 0] = c.n;
+    if (m < 0 || m >= 60 || sec < 0 || sec >= 60) return NaN;
+    let v = Math.abs(d) + m/60 + sec/3600;
+    if (d < 0 || c.h === 'S' || c.h === 'W') v = -v;
+    return v;
+  };
+  let [a, b] = coords;
+  if (a.h && /[EW]/.test(a.h)) [a, b] = [b, a];
+  const lat = toDec(a), lon = toDec(b);
+  if (!isFinite(lat) || !isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return {lat, lon};
+}
+
+/* ---------- Format & Geo ---------- */
+function ddm(v, isLat){
+  const h = isLat ? (v < 0 ? 'S' : 'N') : (v < 0 ? 'W' : 'O');
+  v = Math.abs(v); let d = Math.floor(v); let m = ((v - d) * 60).toFixed(4);
+  if (m === '60.0000') { d += 1; m = '0.0000'; }
+  return `${h} ${String(d).padStart(isLat?2:3,'0')}°${m.padStart(7,'0')}′`;
+}
+const fmtPos = p => `${ddm(p.lat,true)}  ${ddm(p.lon,false)}`;
+const R = 6371008.8, toRad = d => d*Math.PI/180, toDeg = r => r*180/Math.PI;
+function distance(a,b){
+  const dLat = toRad(b.lat-a.lat), dLon = toRad(b.lon-a.lon);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function bearing(a,b){
+  const y = Math.sin(toRad(b.lon-a.lon))*Math.cos(toRad(b.lat));
+  const x = Math.cos(toRad(a.lat))*Math.sin(toRad(b.lat)) - Math.sin(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.cos(toRad(b.lon-a.lon));
+  return (toDeg(Math.atan2(y,x)) + 360) % 360;
+}
+const DIRS = ['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const cardinal = b => DIRS[Math.round(b/22.5) % 16];
+function fmtDist(d){
+  if (d < 1000) return `${Math.round(d)} m`;
+  if (d < 10000) return `${(d/1000).toFixed(2).replace('.',',')} km`;
+  return `${(d/1000).toFixed(1).replace('.',',')} km`;
+}
+const approach = (cur, want) => cur + (((want - cur) % 360 + 540) % 360 - 180);
+
+/* ---------- Anzeige ---------- */
+function render(){
+  if (pos) $('myPos').textContent = fmtPos(pos);
+  const parts = [];
+  if (pos) parts.push(`GPS ±${Math.round(pos.acc)} m`);
+  if (compassAcc !== null && compassAcc >= 0) parts.push(`Kompass ±${Math.round(compassAcc)}°`);
+  $('acc').textContent = parts.join(', ');
+  $('cstatus').textContent = (compassAcc !== null && (compassAcc < 0 || compassAcc > 20))
+    ? 'Kompass ungenau: Handy ein paar Mal in einer Acht schwenken, weg von Metall und Magneten.' : '';
+  const wrap = $('dialWrap');
+  if (!target || !pos) {
+    tgtBearing = null;
+    $('dist').textContent = '–'; $('dist').classList.remove('ok');
+    $('dir').textContent = !target ? 'Baum markieren' : 'Warte auf GPS …';
+    wrap.classList.remove('arrived');
+    return;
+  }
+  const d = distance(pos, target), b = bearing(pos, target);
+  tgtBearing = b;
+  const arrived = d <= Math.max(5, pos.acc);
+  wrap.classList.toggle('arrived', arrived);
+  $('dist').textContent = fmtDist(d);
+  $('dist').classList.toggle('ok', arrived);
+  $('dir').textContent = arrived ? 'Du stehst beim Baum' : `${cardinal(b)}, ${Math.round(b)}°` + (heading === null ? ' (Pfeil nordausgerichtet)' : '');
+}
+
+/* ---------- Animationsschleife: glättet Kompass, 60 fps ---------- */
+function loop(){
+  if (rawHeading !== null) {
+    const r = toRad(rawHeading + offset), k = 0.3;
+    smS += (Math.sin(r) - smS) * k; smC += (Math.cos(r) - smC) * k;
+    heading = (toDeg(Math.atan2(smS, smC)) + 360) % 360;
+  }
+  const h = heading ?? 0;
+  shownRose = approach(shownRose, -h);
+  $('rose').style.transform = `rotate(${shownRose}deg)`;
+  if (tgtBearing !== null) {
+    shownNeedle = approach(shownNeedle, tgtBearing - h);
+    $('needle').style.transform = `rotate(${shownNeedle}deg)`;
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Bäume ---------- */
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify({trees, activeId})); } catch(e) {} }
+function activate(id){
+  const t = trees.find(x => x.id === id);
+  activeId = t ? t.id : null; target = t ? {lat: t.lat, lon: t.lon} : null;
+  $('treeName').textContent = t ? t.name : 'Baum';
+  $('targetText').textContent = t ? fmtPos(t) : 'Noch kein Baum markiert';
+  if (t) $('mapsLink').href = `https://maps.apple.com/?daddr=${t.lat.toFixed(6)},${t.lon.toFixed(6)}&dirflg=w`;
+  $('mapsLink').classList.toggle('hidden', !t);
+  persist(); listTrees(); render();
+}
+function addTree(t){
+  const name = $('nameIn').value.trim() || `Baum ${trees.length + 1}`;
+  const tree = {id: Date.now().toString(36), name, lat: t.lat, lon: t.lon};
+  trees.push(tree); $('nameIn').value = ''; $('coordIn').value = '';
+  activate(tree.id); toggleEdit(false);
+}
+function listTrees(){
+  const ul = $('trees'); ul.innerHTML = '';
+  trees.forEach(t => {
+    const li = document.createElement('li'); if (t.id === activeId) li.className = 'active';
+    const pick = document.createElement('button'); pick.className = 'pick'; pick.type = 'button';
+    const b = document.createElement('b'); b.textContent = t.name;
+    const sp = document.createElement('span'); sp.textContent = fmtPos(t) + (pos ? `, ${fmtDist(distance(pos, t))}` : '');
+    pick.append(b, sp); pick.onclick = () => { activate(t.id); toggleEdit(false); };
+    const del = document.createElement('button'); del.className = 'del'; del.type = 'button';
+    del.textContent = '×'; del.setAttribute('aria-label', `${t.name} löschen`);
+    del.onclick = () => { if (!confirm(`„${t.name}“ löschen?`)) return; trees = trees.filter(x => x.id !== t.id); activate(activeId === t.id ? (trees[0]?.id ?? null) : activeId); };
+    li.append(pick, del); ul.appendChild(li);
+  });
+}
+function toggleEdit(open){
+  $('editTarget').classList.toggle('hidden', !open);
+  $('showTarget').classList.toggle('hidden', open);
+  $('parseErr').textContent = '';
+  if (open) listTrees();
+}
+$('showTarget').onclick = () => toggleEdit(true);
+$('closeBtn').onclick = () => toggleEdit(false);
+$('setBtn').onclick = () => {
+  const t = parseCoords($('coordIn').value);
+  if (!t) { $('parseErr').textContent = 'Format nicht erkannt. Beispiel: N 47°42.7953′ O 016°19.5124′ oder 47.71325, 16.32521'; return; }
+  addTree(t);
+};
+$('coordIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('setBtn').click(); });
+$('hereBtn').onclick = () => {
+  if (!pos) { $('parseErr').textContent = 'Noch keine GPS-Position. Kurz warten.'; return; }
+  addTree({lat: pos.lat, lon: pos.lon});
+};
+
+/* ---------- GPS ---------- */
+function startGPS(){
+  if (!('geolocation' in navigator)) { setStatus('Dieses Gerät bietet kein GPS im Browser.', true); return; }
+  navigator.geolocation.watchPosition(p => {
+    const c = p.coords;
+    pos = {lat: c.latitude, lon: c.longitude, acc: c.accuracy};
+    // Beim Gehen: Kompass gegen GPS-Kurs abgleichen (korrigiert Missweisung + Gerätefehler)
+    if (rawHeading !== null && c.speed >= 0.8 && c.heading != null && !isNaN(c.heading) && c.accuracy <= 25) {
+      const diff = ((c.heading - rawHeading) % 360 + 540) % 360 - 180;
+      const step = ((diff - offset) % 360 + 540) % 360 - 180;
+      offset = Math.max(-20, Math.min(20, offset + step * 0.1));
+    }
+    setStatus(''); render();
+  }, e => {
+    const msg = e.code === 1
+      ? 'Standortzugriff blockiert. iPhone: Einstellungen › Datenschutz › Ortungsdienste › Safari-Websites › „Beim Verwenden“ und „Genauer Standort“ an.'
+      : e.code === 3 ? 'GPS-Zeitüberschreitung, versuche es weiter …' : 'Position nicht verfügbar. Unter freiem Himmel klappt es besser.';
+    setStatus(msg, e.code === 1);
+  }, {enableHighAccuracy: true, maximumAge: 0, timeout: 20000});
+}
+function setStatus(t, bad){ $('status').textContent = t; $('status').classList.toggle('bad', !!bad); }
+
+/* ---------- Kompass ---------- */
+function onOrient(e){
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
+  else if (e.absolute && e.alpha != null) h = 360 - e.alpha;
+  if (h === null) return;
+  if (typeof e.webkitCompassAccuracy === 'number') compassAcc = e.webkitCompassAccuracy;
+  const scr = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  const first = rawHeading === null;
+  rawHeading = (h + scr + 360) % 360;
+  if (first) {
+    const r = toRad(rawHeading + offset); smS = Math.sin(r); smC = Math.cos(r);
+    heading = rawHeading; $('compassBtn').classList.add('hidden');
+  }
+  const now = performance.now();
+  if (first || now - lastTxt > 250) { lastTxt = now; render(); }
+}
+$('compassBtn').onclick = async () => {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') { setStatus('Kompass-Zugriff abgelehnt.', true); return; }
+    }
+    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient, true);
+    else window.addEventListener('deviceorientation', onOrient, true);
+    setTimeout(() => { if (heading === null) setStatus('Kein Kompass-Signal. Handy kurz in einer Acht bewegen.', false); }, 2500);
+  } catch(e) { setStatus('Kompass nicht verfügbar.', true); }
+};
+
+/* ---------- Start ---------- */
+try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && Array.isArray(d.trees)) { trees = d.trees.filter(t => isFinite(t.lat) && isFinite(t.lon)); activeId = d.activeId; } } catch(e) {}
+activate(trees.some(t => t.id === activeId) ? activeId : (trees[0]?.id ?? null));
+if (!trees.length) toggleEdit(true);
+startGPS(); render(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
