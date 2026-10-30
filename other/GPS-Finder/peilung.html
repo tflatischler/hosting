@@ -44,7 +44,7 @@ button{cursor:pointer}
 
 .dial-wrap{position:relative;width:100%;aspect-ratio:1;max-width:360px;margin:0 auto}
 svg.dial{width:100%;height:100%;display:block;overflow:visible}
-.rose,.needle{transition:transform .18s linear;transform-origin:0 0}
+.rose,.needle{transform-origin:0 0;will-change:transform}
 .tick{stroke:var(--muted)}
 .tick.major{stroke:var(--ink);stroke-width:1.6}
 .cardinal{font:600 15px "Barlow Condensed",sans-serif;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
@@ -57,7 +57,7 @@ svg.dial{width:100%;height:100%;display:block;overflow:visible}
 .arrived .ring{stroke:var(--ok);animation:pulse 1.6s ease-out infinite}
 .ring{fill:none;stroke:transparent;stroke-width:3}
 @keyframes pulse{0%{stroke-opacity:1}100%{stroke-opacity:.15}}
-@media (prefers-reduced-motion:reduce){.rose,.needle{transition:none}.arrived .ring{animation:none}}
+@media (prefers-reduced-motion:reduce){.arrived .ring{animation:none}}
 
 .readout{text-align:center}
 .dist{font:600 clamp(64px,22vw,96px)/.9 "Barlow Condensed",sans-serif;letter-spacing:-.01em}
@@ -118,6 +118,7 @@ svg.dial{width:100%;height:100%;display:block;overflow:visible}
     <div class="coords" id="myPos">Warte auf GPS …</div>
     <div class="acc" id="acc"></div>
     <div class="status" id="status"></div>
+    <div class="status bad" id="cstatus"></div>
   </section>
 </main>
 
@@ -126,6 +127,7 @@ const $ = id => document.getElementById(id);
 const KEY = 'peilung-ziel';
 let target = null, pos = null, heading = null;
 let shownNeedle = 0, shownRose = 0;
+let rawHeading = null, compassAcc = null, offset = 0, smS = 0, smC = 1, tgtBearing = null, lastTxt = 0;
 
 /* ---------- Kompassrose ---------- */
 (function buildRose(){
@@ -220,29 +222,45 @@ const approach = (cur, want) => cur + (((want - cur) % 360 + 540) % 360 - 180);
 
 /* ---------- Anzeige ---------- */
 function render(){
-  const h = heading ?? 0;
-  shownRose = approach(shownRose, -h);
-  $('rose').style.transform = `rotate(${shownRose}deg)`;
-
-  if (pos) {
-    $('myPos').textContent = fmtPos(pos);
-    $('acc').textContent = `±${Math.round(pos.acc)} m`;
-  }
+  if (pos) $('myPos').textContent = fmtPos(pos);
+  const parts = [];
+  if (pos) parts.push(`GPS ±${Math.round(pos.acc)} m`);
+  if (compassAcc !== null && compassAcc >= 0) parts.push(`Kompass ±${Math.round(compassAcc)}°`);
+  $('acc').textContent = parts.join(', ');
+  $('cstatus').textContent = (compassAcc !== null && (compassAcc < 0 || compassAcc > 20))
+    ? 'Kompass ungenau: Handy ein paar Mal in einer Acht schwenken, weg von Metall und Magneten.' : '';
   const wrap = $('dialWrap');
   if (!target || !pos) {
+    tgtBearing = null;
     $('dist').textContent = '–'; $('dist').classList.remove('ok');
     $('dir').textContent = !target ? 'Ziel eingeben' : 'Warte auf GPS …';
     wrap.classList.remove('arrived');
     return;
   }
   const d = distance(pos, target), b = bearing(pos, target);
-  shownNeedle = approach(shownNeedle, b - h);
-  $('needle').style.transform = `rotate(${shownNeedle}deg)`;
+  tgtBearing = b;
   const arrived = d <= Math.max(5, pos.acc);
   wrap.classList.toggle('arrived', arrived);
   $('dist').textContent = fmtDist(d);
   $('dist').classList.toggle('ok', arrived);
   $('dir').textContent = arrived ? 'Am Ziel' : `${cardinal(b)}, ${Math.round(b)}°` + (heading === null ? ' (Pfeil nordausgerichtet)' : '');
+}
+
+/* ---------- Animationsschleife: glättet Kompass, 60 fps ---------- */
+function loop(){
+  if (rawHeading !== null) {
+    const r = toRad(rawHeading + offset), k = 0.3;
+    smS += (Math.sin(r) - smS) * k; smC += (Math.cos(r) - smC) * k;
+    heading = (toDeg(Math.atan2(smS, smC)) + 360) % 360;
+  }
+  const h = heading ?? 0;
+  shownRose = approach(shownRose, -h);
+  $('rose').style.transform = `rotate(${shownRose}deg)`;
+  if (tgtBearing !== null) {
+    shownNeedle = approach(shownNeedle, tgtBearing - h);
+    $('needle').style.transform = `rotate(${shownNeedle}deg)`;
+  }
+  requestAnimationFrame(loop);
 }
 
 /* ---------- Ziel ---------- */
@@ -276,7 +294,14 @@ $('hereBtn').onclick = () => {
 function startGPS(){
   if (!('geolocation' in navigator)) { setStatus('Dieses Gerät bietet kein GPS im Browser.', true); return; }
   navigator.geolocation.watchPosition(p => {
-    pos = {lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy};
+    const c = p.coords;
+    pos = {lat: c.latitude, lon: c.longitude, acc: c.accuracy};
+    // Beim Gehen: Kompass gegen GPS-Kurs abgleichen (korrigiert Missweisung + Gerätefehler)
+    if (rawHeading !== null && c.speed >= 0.8 && c.heading != null && !isNaN(c.heading) && c.accuracy <= 25) {
+      const diff = ((c.heading - rawHeading) % 360 + 540) % 360 - 180;
+      const step = ((diff - offset) % 360 + 540) % 360 - 180;
+      offset = Math.max(-20, Math.min(20, offset + step * 0.1));
+    }
     setStatus(''); render();
   }, e => {
     const msg = e.code === 1
@@ -293,10 +318,16 @@ function onOrient(e){
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if (e.absolute && e.alpha != null) h = 360 - e.alpha;
   if (h === null) return;
+  if (typeof e.webkitCompassAccuracy === 'number') compassAcc = e.webkitCompassAccuracy;
   const scr = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
-  heading = (h + scr + 360) % 360;
-  $('compassBtn').classList.add('hidden');
-  render();
+  const first = rawHeading === null;
+  rawHeading = (h + scr + 360) % 360;
+  if (first) {
+    const r = toRad(rawHeading + offset); smS = Math.sin(r); smC = Math.cos(r);
+    heading = rawHeading; $('compassBtn').classList.add('hidden');
+  }
+  const now = performance.now();
+  if (first || now - lastTxt > 250) { lastTxt = now; render(); }
 }
 $('compassBtn').onclick = async () => {
   try {
@@ -304,15 +335,15 @@ $('compassBtn').onclick = async () => {
       const r = await DeviceOrientationEvent.requestPermission();
       if (r !== 'granted') { setStatus('Kompass-Zugriff abgelehnt.', true); return; }
     }
-    window.addEventListener('deviceorientationabsolute', onOrient, true);
-    window.addEventListener('deviceorientation', onOrient, true);
+    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient, true);
+    else window.addEventListener('deviceorientation', onOrient, true);
     setTimeout(() => { if (heading === null) setStatus('Kein Kompass-Signal. Handy kurz in einer Acht bewegen.', false); }, 2500);
   } catch(e) { setStatus('Kompass nicht verfügbar.', true); }
 };
 
 /* ---------- Start ---------- */
 try { const t = JSON.parse(localStorage.getItem(KEY) || 'null'); if (t && isFinite(t.lat) && isFinite(t.lon)) setTarget(t, false); else toggleEdit(true); } catch(e) { toggleEdit(true); }
-startGPS(); render();
+startGPS(); render(); requestAnimationFrame(loop);
 </script>
 </body>
 </html>
