@@ -1,6 +1,6 @@
 # FSD City Eisenstadt
 
-Single-File-Browserspiel (`index.html`): Innenstadt Eisenstadt (Bounding Box 47.8395,16.5085,47.8555,16.5395)
+Single-File-Browserspiel (`index.html`, komplett eigenständig: three.js, GLTFLoader und Roadster-Modell eingebettet, läuft auch per Doppelklick offline): Innenstadt Eisenstadt (Bounding Box 47.8395,16.5085,47.8555,16.5395)
 im Look der Tesla-Cockpit-Umgebungsansicht, mit KI-Verkehr, Fußgängern, Autopilot und dem Roadster samt
 Suction-Fans und Kaltgas-Düsen (Fahrlogik aus „Roadster Thruster: Starbase“).
 

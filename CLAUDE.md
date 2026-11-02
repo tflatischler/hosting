@@ -46,7 +46,7 @@ descriptions/tags/custom titles live in `sites.json` and are preserved by the me
 
 ## FSD City Eisenstadt (`projects/fsd-city-eisenstadt/`)
 
-`index.html` is assembled as one file (Roadster GLB embedded as base64, OSM converter between
+`index.html` is fully self-contained, no CDN or web fonts (three.js r128 + GLTFLoader inlined, Roadster GLB embedded as base64, OSM converter between
 `/*CONVERTER-BEGIN*/` and `/*CONVERTER-END*/`). `tools/build-city.mjs` (Node 18+) fetches Overpass, caches raw
 data in `data/raw/`, reuses that converter block and embeds the compact city JSON into `<script id="cityData">`.
 The Pages workflow runs it with `continue-on-error`; without embedded data the page fetches Overpass at runtime.
