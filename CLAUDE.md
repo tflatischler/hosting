@@ -43,3 +43,10 @@ regenerates `sites.json`. To edit descriptions/tags/titles, either edit `sites.j
 use the live page's **Manage → Export** flow and commit the downloaded file. Two source-of-truth
 rules to respect: the tree structure comes from the actual files (via `gen-index.py`), while
 descriptions/tags/custom titles live in `sites.json` and are preserved by the merge.
+
+## FSD City Eisenstadt (`projects/fsd-city-eisenstadt/`)
+
+`index.html` is assembled as one file (Roadster GLB embedded as base64, OSM converter between
+`/*CONVERTER-BEGIN*/` and `/*CONVERTER-END*/`). `tools/build-city.mjs` (Node 18+) fetches Overpass, caches raw
+data in `data/raw/`, reuses that converter block and embeds the compact city JSON into `<script id="cityData">`.
+The Pages workflow runs it with `continue-on-error`; without embedded data the page fetches Overpass at runtime.
