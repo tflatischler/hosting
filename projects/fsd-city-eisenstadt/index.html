@@ -54,7 +54,22 @@ canvas#gl{position:fixed;inset:0;display:block}
 #navName{font-size:14px;color:var(--fg);opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
 #navEta{font-size:12px;color:var(--muted)}
 #street{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);font-size:14px;color:var(--muted);letter-spacing:.3px;white-space:nowrap;text-shadow:0 1px 8px #000}
-#toast{top:calc(104px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-size:20px;font-weight:500;opacity:0;transition:opacity .3s;white-space:nowrap;padding:8px 16px;border-radius:12px;background:rgba(10,11,13,.6)}
+#toast{top:calc(148px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-size:20px;font-weight:500;opacity:0;transition:opacity .3s;white-space:nowrap;padding:8px 16px;border-radius:12px;background:rgba(10,11,13,.6)}
+#apMind{top:calc(104px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font-size:13.5px;color:#cfe0ff;white-space:nowrap;max-width:calc(100vw - 28px);overflow:hidden;text-overflow:ellipsis}
+#apMind[hidden]{display:none}
+#apMind i{width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);flex:none}
+#apMind.warn i{background:#ffb347;box-shadow:0 0 8px #ffb347} #apMind.hop i{background:#6fd3ff;box-shadow:0 0 10px #6fd3ff}
+#apProp{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));width:min(460px,calc(100vw - 28px));padding:14px 14px 10px;z-index:7}
+#apProp[hidden]{display:none}
+#apProp h3{margin:0 0 2px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+#apProp h3::before{content:"";width:9px;height:9px;border-radius:50%;background:#ffb347;box-shadow:0 0 8px #ffb347}
+#apProp p{margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
+.propOpt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:var(--fg);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:7px;cursor:pointer}
+.propOpt:hover,.propOpt:focus-visible{border-color:var(--blue);outline:none}
+.propOpt.kalt{border-color:rgba(111,211,255,.45);background:rgba(111,211,255,.08)}
+.propOpt kbd{flex:none}
+.propOpt b{display:block;font-size:14.5px;font-weight:600}
+.propOpt span{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
 /* Buttons + Minimap rechts */
 #topRight{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));display:flex;gap:6px;z-index:3}
 .btn{font:inherit;font-size:14px;font-weight:500;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 13px;cursor:pointer;display:flex;align-items:center;gap:6px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -117,6 +132,8 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
   .btn span{display:none}
   #apTxt{display:none}
   #toast{font-size:16px;top:42%}
+  #apMind{top:auto;bottom:calc(262px + env(safe-area-inset-bottom,0px));font-size:12.5px}
+  #apProp{bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:8}
 }
 @media (max-width:720px) and (pointer:fine){ #nav{top:auto;bottom:20px} }
 </style>
@@ -143,6 +160,8 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
 </div>
 <div id="street" class="hud"></div>
 <div id="toast" class="hud"></div>
+<div id="apMind" class="hud card" hidden><i></i><span id="apMindTxt"></span></div>
+<div id="apProp" class="card" hidden role="dialog" aria-live="assertive"><h3 id="propTitle"></h3><p id="propDesc"></p><div id="propOpts"></div></div>
 
 <div id="topRight">
   <button class="btn" id="apBtn" title="Autopilot (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="2.4"/><path d="M2.8 10.5c3 .9 6 .9 9.2.9s6.2 0 9.2-.9M12 14.4V21.5"/></svg><span>Autopilot</span></button>
@@ -163,6 +182,9 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
   <h2>Verkehr</h2>
   <label class="rng">Fahrzeuge <input type="range" id="nV" min="0" max="200" step="10" value="100"><b id="nVV">100</b></label>
   <label class="rng">Fußgänger <input type="range" id="nP" min="0" max="90" step="5" value="50"><b id="nPV">50</b></label>
+  <h2>Szenarien</h2>
+  <div class="chips"><button class="chip" id="scBreak">Panne vor mir</button><button class="chip" id="scJam">Stau hinter Panne</button><label class="chip"><input type="checkbox" id="scRandom" checked> zufällige Pannen</label></div>
+  <div class="note">Der Autopilot erkennt Panne und Stau selbst: Er weicht aus oder überholt, wenn die Gegenfahrbahn frei ist. Geht das nicht, schlägt er Kaltgas-Manöver vor (Sprung über den Stau, Boost-Überholen) und führt sie erst nach deiner Bestätigung aus.</div>
   <h2>Eigene Modelle je Klasse (GLB)</h2>
   <div class="chips"><select id="glbCls" aria-label="Fahrzeugklasse"></select><input type="file" id="glbFile" accept=".glb,model/gltf-binary" aria-label="GLB-Datei"></div>
   <div class="note">Vorne = +Z, Länge wird auf die Klassenlänge skaliert. Per Konsole: <code>FSD.setClassModel('sedan', 'url.glb')</code>.</div>
@@ -174,6 +196,7 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
     <kbd>W</kbd><kbd>S</kbd> / <kbd>↑</kbd><kbd>↓</kbd> Gas / Bremse (in der Luft: nicken)<br>
     <kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> Lenken (in der Luft: rollen)<br>
     <kbd>T</kbd> Autopilot · <kbd>G</kbd> Karte/Ziel · <kbd>C</kbd> Kamera<br>
+    Vorschlag: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> wählen · <kbd>↵</kbd> Empfehlung · <kbd>Esc</kbd> ablehnen<br>
     <kbd>⇧</kbd> Heck-Thruster · <kbd>R</kbd> Lift-Düsen · <kbd>H</kbd> Schweben<br>
     <kbd>Q</kbd><kbd>E</kbd> Gier-Düsen · <kbd>F</kbd> Suction-Fan · <kbd>␣</kbd> Handbremse<br>
     <kbd>P</kbd> Parken · <kbd>N</kbd> Neutral · <kbd>X</kbd> Zurücksetzen · <kbd>M</kbd> Menü<br>
@@ -4692,7 +4715,7 @@ function buildCityMeshes() {
 // Gebäude: halbtransparente dunkelgraue Blöcke mit hellerer Oberkante
 function buildBuildings() {
   const pos = [], col = [], lines = [];
-  const cB = lin(0x15171a), cT = lin(0x3a3f46), cR = lin(0x30343a);
+  const cB = lin(0x1d2024), cT = lin(0x3c4148), cR = lin(0x30343a);
   BLD.forEach(b => {
     const P = b.P, n = P.length / 2, h = b.h;
     for (let i = 0; i < n; i++) {
@@ -4712,11 +4735,11 @@ function buildBuildings() {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.62, depthWrite: false, toneMapped: false, side: THREE.FrontSide }));
-  m.renderOrder = 20; m.frustumCulled = false; scene.add(m);
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  m.renderOrder = 10; m.frustumCulled = false; scene.add(m);
   const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
-  const lm = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: lin(0x9aa3ad), transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }));
-  lm.renderOrder = 21; lm.frustumCulled = false; scene.add(lm);
+  const lm = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: lin(0x8b949e), toneMapped: false }));
+  lm.renderOrder = 11; lm.frustumCulled = false; scene.add(lm);
 }
 // Wände winden: Polygone kommen gegen den Uhrzeigersinn (x/z) – Rückseite wird ggf. verworfen
 // -> Gebäude doppelseitig wäre teurer; Konverter sorgt für positive Fläche.
@@ -4802,37 +4825,41 @@ function updateSignals(t) {
 // ================= Fahrzeugklassen (Visualisierungs-Look) =================
 // Eigene, neutrale Formen – Proportionen an realen Modellen orientiert, keine Logos.
 // Profil: Seitenansicht (x = Länge vorne +, y = Höhe). Unterteil = Karosserie, Oberteil = Kabine (schmaler).
+// Karosserie als Loft: Querschnitte entlang der Länge (t: 0 = Heck, 1 = Front).
+// Schlüsselprofile: [t, Unterkante, Gürtellinie, Dach, halbe Breite unten, halbe Breite oben, Glas 0/1]
 const VCLASS = {
-  sedan:  { name: 'Limousine', L: 4.72, W: 1.85, H: 1.44, wr: 0.33, wb: 2.88, a: 1.6, w: 26,
-    body: [[-2.36, 0.3], [2.36, 0.3], [2.38, 0.56], [2.25, 0.72], [0.95, 0.9], [-1.95, 0.95], [-2.33, 0.9], [-2.38, 0.6]],
-    cab: [[0.95, 0.9], [0.12, 1.42], [-0.85, 1.4], [-1.95, 0.95]] },
-  suv:    { name: 'SUV', L: 4.75, W: 1.92, H: 1.62, wr: 0.36, wb: 2.89, a: 1.5, w: 26,
-    body: [[-2.37, 0.34], [2.37, 0.34], [2.39, 0.62], [2.22, 0.82], [0.95, 1.0], [-2.1, 1.05], [-2.35, 0.98], [-2.39, 0.66]],
-    cab: [[0.95, 1.0], [0.1, 1.6], [-1.15, 1.58], [-2.1, 1.05]] },
-  xl:     { name: 'großes SUV', L: 5.05, W: 2.0, H: 1.68, wr: 0.37, wb: 2.97, a: 1.4, w: 14,
-    body: [[-2.52, 0.34], [2.52, 0.34], [2.54, 0.64], [2.35, 0.84], [1.05, 1.02], [-2.25, 1.08], [-2.5, 1.0], [-2.54, 0.68]],
-    cab: [[1.05, 1.02], [0.15, 1.66], [-1.3, 1.64], [-2.25, 1.08]] },
-  pickup: { name: 'Pickup', L: 5.68, W: 2.2, H: 1.79, wr: 0.42, wb: 3.81, a: 1.4, w: 8, sharp: true,
-    body: [[-2.84, 0.42], [2.84, 0.42], [2.86, 0.9], [2.65, 1.08], [0.1, 1.79], [-2.84, 1.34]],
-    cab: null },
-  pod:    { name: 'Robotaxi', L: 3.75, W: 1.8, H: 1.42, wr: 0.32, wb: 2.6, a: 1.4, w: 10,
-    body: [[-1.87, 0.3], [1.87, 0.3], [1.9, 0.55], [1.7, 0.78], [0.8, 0.92], [-1.55, 0.95], [-1.86, 0.8], [-1.9, 0.55]],
-    cab: [[0.8, 0.92], [0.05, 1.4], [-0.75, 1.38], [-1.55, 0.95]] },
-  van:    { name: 'Lieferwagen', L: 5.9, W: 2.02, H: 2.6, wr: 0.36, wb: 3.66, a: 1.1, w: 9,
-    body: [[-2.95, 0.38], [2.95, 0.38], [2.97, 0.72], [2.6, 1.15], [2.05, 1.95], [1.7, 2.6], [-2.95, 2.6]],
-    cab: null },
-  bus:    { name: 'Bus', L: 12.0, W: 2.55, H: 3.1, wr: 0.5, wb: 6.0, a: 0.9, w: 5,
-    body: [[-6.0, 0.35], [6.0, 0.35], [6.02, 1.0], [5.95, 3.0], [5.75, 3.1], [-5.95, 3.1], [-6.0, 2.9]],
-    cab: null },
+  sedan: { name: 'Limousine', L: 4.72, W: 1.85, H: 1.44, wr: 0.34, wb: 2.88, a: 1.6, w: 26, nb: 5, nu: 3.2, prof: [
+    [0.00, 0.42, 0.74, 0.76, 0.66, 0.62, 0], [0.025, 0.31, 0.90, 0.93, 0.87, 0.83, 0], [0.12, 0.27, 0.97, 1.00, 0.92, 0.86, 0],
+    [0.20, 0.27, 0.98, 1.16, 0.925, 0.68, 1], [0.32, 0.27, 0.97, 1.37, 0.925, 0.62, 1], [0.48, 0.27, 0.95, 1.44, 0.925, 0.63, 1],
+    [0.58, 0.27, 0.93, 1.40, 0.925, 0.66, 1], [0.68, 0.27, 0.89, 1.12, 0.92, 0.74, 1], [0.745, 0.28, 0.86, 0.89, 0.91, 0.84, 0],
+    [0.90, 0.30, 0.76, 0.78, 0.89, 0.80, 0], [0.975, 0.34, 0.64, 0.66, 0.80, 0.72, 0], [1.00, 0.44, 0.55, 0.56, 0.62, 0.56, 0]] },
+  suv: { name: 'SUV', L: 4.75, W: 1.92, H: 1.62, wr: 0.37, wb: 2.89, a: 1.5, w: 26, nb: 5, nu: 3.4, prof: [
+    [0.00, 0.45, 0.82, 0.86, 0.70, 0.64, 0], [0.025, 0.34, 0.98, 1.08, 0.90, 0.84, 0], [0.07, 0.32, 1.03, 1.36, 0.95, 0.72, 1],
+    [0.18, 0.31, 1.04, 1.56, 0.96, 0.66, 1], [0.40, 0.30, 1.03, 1.62, 0.96, 0.66, 1], [0.56, 0.30, 1.01, 1.60, 0.96, 0.68, 1],
+    [0.68, 0.30, 0.98, 1.24, 0.955, 0.76, 1], [0.75, 0.31, 0.95, 0.98, 0.95, 0.88, 0], [0.90, 0.33, 0.85, 0.87, 0.92, 0.84, 0],
+    [0.975, 0.38, 0.72, 0.74, 0.82, 0.74, 0], [1.00, 0.48, 0.62, 0.63, 0.64, 0.58, 0]] },
+  xl: { name: 'großes SUV', L: 5.05, W: 2.0, H: 1.68, wr: 0.38, wb: 2.97, a: 1.4, w: 14, nb: 5, nu: 3.4, prof: [
+    [0.00, 0.45, 0.84, 0.88, 0.72, 0.66, 0], [0.025, 0.34, 1.00, 1.10, 0.94, 0.86, 0], [0.08, 0.32, 1.05, 1.42, 1.00, 0.72, 1],
+    [0.22, 0.31, 1.06, 1.64, 1.00, 0.68, 1], [0.50, 0.30, 1.05, 1.68, 1.00, 0.68, 1], [0.64, 0.30, 1.02, 1.58, 1.00, 0.70, 1],
+    [0.74, 0.31, 0.98, 1.06, 0.99, 0.86, 0], [0.90, 0.33, 0.88, 0.90, 0.96, 0.86, 0], [0.975, 0.38, 0.74, 0.76, 0.86, 0.76, 0],
+    [1.00, 0.48, 0.64, 0.65, 0.66, 0.60, 0]] },
+  pickup: { name: 'Pickup', L: 5.68, W: 2.2, H: 1.79, wr: 0.43, wb: 3.81, a: 1.4, w: 8, nb: 14, nu: 14, linear: true, prof: [
+    [0.00, 0.50, 1.00, 1.30, 1.08, 1.04, 0], [0.01, 0.44, 1.02, 1.32, 1.10, 1.06, 0], [0.42, 0.42, 1.05, 1.62, 1.10, 1.02, 0],
+    [0.47, 0.42, 1.05, 1.67, 1.10, 1.0, 1], [0.55, 0.42, 1.05, 1.79, 1.10, 0.98, 1], [0.78, 0.42, 1.03, 1.27, 1.10, 1.0, 1],
+    [0.80, 0.42, 1.02, 1.21, 1.10, 1.02, 0], [0.985, 0.46, 0.95, 1.06, 1.10, 1.04, 0], [1.00, 0.55, 0.88, 0.98, 1.06, 1.02, 0]] },
+  pod: { name: 'Robotaxi', L: 3.9, W: 1.82, H: 1.42, wr: 0.34, wb: 2.7, a: 1.4, w: 10, nb: 4.5, nu: 2.8, prof: [
+    [0.00, 0.42, 0.78, 0.82, 0.70, 0.64, 0], [0.03, 0.30, 0.90, 1.00, 0.89, 0.80, 0], [0.12, 0.29, 0.94, 1.22, 0.91, 0.72, 1],
+    [0.30, 0.29, 0.94, 1.40, 0.91, 0.64, 1], [0.50, 0.29, 0.92, 1.42, 0.91, 0.64, 1], [0.66, 0.29, 0.88, 1.20, 0.91, 0.70, 1],
+    [0.76, 0.30, 0.84, 0.90, 0.90, 0.82, 0], [0.93, 0.33, 0.72, 0.75, 0.85, 0.76, 0], [1.00, 0.45, 0.58, 0.60, 0.62, 0.56, 0]] },
+  van: { name: 'Lieferwagen', L: 5.95, W: 2.02, H: 2.6, wr: 0.37, wb: 3.66, a: 1.1, w: 9, nb: 8, nu: 8, prof: [
+    [0.00, 0.50, 1.10, 2.50, 0.96, 0.94, 0], [0.01, 0.40, 1.15, 2.58, 1.0, 0.98, 0], [0.70, 0.38, 1.15, 2.60, 1.0, 0.98, 0],
+    [0.74, 0.38, 1.12, 2.58, 1.0, 0.98, 1], [0.84, 0.38, 1.10, 2.10, 1.0, 0.94, 1], [0.88, 0.38, 1.08, 1.40, 1.0, 0.92, 0],
+    [0.97, 0.40, 0.95, 1.02, 0.97, 0.9, 0], [1.00, 0.50, 0.80, 0.84, 0.86, 0.8, 0]] },
+  bus: { name: 'Bus', L: 12.0, W: 2.55, H: 3.1, wr: 0.5, wb: 6.0, a: 0.9, w: 5, nb: 9, nu: 9, prof: [
+    [0.00, 0.45, 1.20, 2.95, 1.22, 1.20, 0], [0.008, 0.36, 1.20, 3.05, 1.275, 1.25, 0], [0.04, 0.35, 1.20, 3.10, 1.275, 1.25, 1],
+    [0.96, 0.35, 1.10, 3.10, 1.275, 1.25, 1], [0.99, 0.36, 0.95, 3.02, 1.27, 1.24, 1], [1.00, 0.45, 0.90, 2.90, 1.2, 1.18, 0]] },
 };
 const CLS = Object.keys(VCLASS);
-function profileGeo(pts, width, bevel) {
-  const sh = new THREE.Shape(); pts.forEach((p, i) => i ? sh.lineTo(p[0], p[1]) : sh.moveTo(p[0], p[1])); sh.closePath();
-  const b = bevel, g = new THREE.ExtrudeGeometry(sh, { depth: Math.max(0.1, width - 2 * b), bevelEnabled: b > 0, bevelThickness: b, bevelSize: b * 0.9, bevelSegments: 2, curveSegments: 4 });
-  g.translate(0, 0, -(width - 2 * b) / 2);
-  g.rotateY(-Math.PI / 2); // Länge -> +z (vorne)
-  return g.index ? g.toNonIndexed() : g;
-}
 function colorize(g, c) { const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (g.attributes.uv) g.deleteAttribute('uv'); if (g.attributes.uv2) g.deleteAttribute('uv2'); return g; }
 function mergeGeos(list) {
   let n = 0; list.forEach(g => n += g.attributes.position.count);
@@ -4841,19 +4868,60 @@ function mergeGeos(list) {
   const m = new THREE.BufferGeometry(); m.setAttribute('position', new THREE.BufferAttribute(pos, 3)); m.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); m.setAttribute('color', new THREE.BufferAttribute(col, 3));
   m.computeBoundingSphere(); return m;
 }
-const C_BODY = lin(0xc4c8cd), C_CAB = lin(0x7d838b), C_WHEEL = lin(0x2a2d32);
-function classGeometry(k) {
-  const c = VCLASS[k], parts = [];
-  parts.push(colorize(profileGeo(c.body, c.W, c.sharp ? 0.03 : 0.1), C_BODY));
-  if (c.cab) parts.push(colorize(profileGeo(c.cab, c.W * 0.84, 0.08), C_CAB));
-  if (k === 'bus' || k === 'van') { // Fensterband
-    const L = c.L / 2, y0 = k === 'bus' ? 1.55 : 1.35, y1 = k === 'bus' ? 2.75 : 2.0, x1 = k === 'bus' ? L - 0.1 : 1.95;
-    parts.push(colorize(profileGeo([[-L + 0.25, y0], [x1, y0], [x1 - 0.2, y1], [-L + 0.25, y1]], c.W + 0.04, 0), C_CAB));
+const C_BODY = lin(0xc9ccd1), C_CAB = lin(0x5d636b), C_WHEEL = lin(0x26292d), C_RIM = lin(0x8d939a);
+// Profil an Stelle t interpolieren (Catmull-Rom, beim Pickup linear)
+function profAt(c, t) {
+  const P = c.prof; let i = 0; while (i < P.length - 2 && P[i + 1][0] < t) i++;
+  const a = P[i], b = P[i + 1], u = clamp((t - a[0]) / Math.max(1e-6, b[0] - a[0]), 0, 1), o = [];
+  const p0 = P[Math.max(0, i - 1)], p3 = P[Math.min(P.length - 1, i + 2)];
+  for (let k = 1; k < 7; k++) {
+    if (c.linear || k === 6) { o.push(a[k] + (b[k] - a[k]) * u); continue; }
+    const m1 = (b[k] - p0[k]) * 0.5, m2 = (p3[k] - a[k]) * 0.5, u2 = u * u, u3 = u2 * u;
+    o.push((2 * u3 - 3 * u2 + 1) * a[k] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * b[k] + (u3 - u2) * m2);
   }
-  if (k === 'pickup') parts.push(colorize(profileGeo([[1.9, 1.2], [0.15, 1.72], [-1.0, 1.52], [-0.9, 1.22]], c.W + 0.02, 0), C_CAB));
-  const wg = new THREE.CylinderGeometry(c.wr, c.wr, 0.26, 16); wg.rotateZ(Math.PI / 2);
-  const axles = k === 'bus' ? [c.wb / 2 + 0.6, -c.wb / 2 + 0.6] : [c.wb / 2, -c.wb / 2];
-  axles.forEach(z => [-1, 1].forEach(sd => { const g = wg.clone(); g.translate(sd * (c.W / 2 - 0.15), c.wr, z); parts.push(colorize(g.toNonIndexed(), C_WHEEL)); }));
+  return o; // [yb, belt, top, wb, wt, glas]
+}
+function loftBody(c) {
+  const N = 44, M = 36, pos = [], col = [], idx = [];
+  const ts = []; for (let i = 0; i <= N; i++) { const u = i / N; ts.push(0.5 - 0.5 * Math.cos(u * Math.PI)); } // an den Enden dichter
+  const sp = (v, n) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n);
+  for (const t of ts) {
+    const [yb, belt, top, wb, wt, gl] = profAt(c, t), z = (t - 0.5) * c.L, cab = top - belt;
+    for (let j = 0; j < M; j++) {
+      const th = j / M * Math.PI * 2, cs = Math.cos(th), sn = Math.sin(th);
+      let x, y, glass = false;
+      if (sn < 0) { x = sp(cs, c.nb) * wb; y = belt + sp(sn, c.nb) * (belt - yb); }
+      else { const k = Math.pow(sn, 0.7); x = sp(cs, c.nu) * (wb + (wt - wb) * k); y = belt + sp(sn, c.nu) * cab; glass = gl > 0.5 && cab > 0.18 && sn > 0.1 && sn < 0.93; }
+      pos.push(x, y, z); const cc = glass ? C_CAB : C_BODY; col.push(cc.r, cc.g, cc.b);
+    }
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) {
+    const a = i * M + j, b = i * M + (j + 1) % M, d = (i + 1) * M + j, e = (i + 1) * M + (j + 1) % M;
+    idx.push(a, d, b, b, d, e);
+  }
+  // Kappen
+  [[0, -1], [N, 1]].forEach(([i, sd]) => {
+    let cx = 0, cy = 0, cz = 0; for (let j = 0; j < M; j++) { cx += pos[(i * M + j) * 3]; cy += pos[(i * M + j) * 3 + 1]; cz += pos[(i * M + j) * 3 + 2]; }
+    const ci = pos.length / 3; pos.push(cx / M, cy / M, cz / M + sd * 0.01); col.push(C_BODY.r, C_BODY.g, C_BODY.b);
+    for (let j = 0; j < M; j++) { const a = i * M + j, b = i * M + (j + 1) % M; if (sd > 0) idx.push(ci, b, a); else idx.push(ci, a, b); }
+  });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+  g.computeVertexNormals();
+  return g.toNonIndexed();
+}
+function wheelGeo(r, w) {
+  const pts = [[0.0, -w / 2], [r * 0.62, -w / 2 - 0.005], [r * 0.86, -w / 2], [r * 0.97, -w / 2 + 0.03], [r, -w / 2 + 0.08], [r, w / 2 - 0.08], [r * 0.97, w / 2 - 0.03], [r * 0.86, w / 2], [r * 0.62, w / 2 + 0.005], [0.0, w / 2]].map(p => new THREE.Vector2(p[0], p[1]));
+  const g = new THREE.LatheGeometry(pts, 20).toNonIndexed(); g.rotateZ(Math.PI / 2); g.computeVertexNormals();
+  colorize(g, C_WHEEL);
+  const col = g.attributes.color, pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const rr = Math.hypot(pos.getY(i), pos.getZ(i)); if (rr < r * 0.64) col.setXYZ(i, C_RIM.r, C_RIM.g, C_RIM.b); }
+  return g;
+}
+function classGeometry(k) {
+  const c = VCLASS[k], parts = [loftBody(c)];
+  const axles = k === 'bus' ? [c.L / 2 - 2.6, -c.L / 2 + 3.1] : [c.wb / 2, -c.wb / 2];
+  const ww = k === 'bus' || k === 'van' ? 0.28 : 0.24, wg = wheelGeo(c.wr, ww);
+  axles.forEach(z => [-1, 1].forEach(sd => { const g = wg.clone(); g.translate(sd * (c.W / 2 - ww / 2 + 0.02), c.wr, z + (k === 'bus' ? 0 : -0.0) + (c.L * 0.0)); parts.push(g); }));
   return mergeGeos(parts);
 }
 // Material: hellgrau, leicht matt, dezente Fresnel-Kante
@@ -4868,7 +4936,7 @@ function vizMaterial() {
 const VIZ_MAT = vizMaterial();
 const MAXV = 220;
 const VMESH = {};
-CLS.forEach(k => { const im = new THREE.InstancedMesh(classGeometry(k), VIZ_MAT, MAXV); im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); VMESH[k] = im; });
+CLS.forEach(k => { const im = new THREE.InstancedMesh(classGeometry(k), VIZ_MAT, MAXV); im.setColorAt(0, new THREE.Color(1, 1, 1)); im.instanceColor.setUsage(THREE.DynamicDrawUsage); im.count = 0; im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); VMESH[k] = im; });
 // Lichter: Bremslichter (rot) und Blinker (orange) als einzige Farbtupfer
 const lightGeo = new THREE.BoxGeometry(1, 1, 1);
 const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
@@ -4905,7 +4973,7 @@ class Heap {
   pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top[1]; }
   get size() { return this.a.length; }
 }
-function astar(from, to, limit = 60000) {
+function astar(from, to, limit = 60000, pen = null) {
   if (from === to) return [from];
   const goal = LANES[to], gx = goal.ex, gz = goal.ez, VH = 1 / 16;
   const gs = new Map([[from, 0]]), prev = new Map(), H = new Heap(), closed = new Set();
@@ -4915,7 +4983,7 @@ function astar(from, to, limit = 60000) {
     if (closed.has(cur)) continue; closed.add(cur);
     const g0 = gs.get(cur);
     for (const n of LANES[cur].nx) {
-      const l = LANES[n], g = g0 + l.L / Math.max(3, l.spd) + (l.turn === 'U' ? 30 : l.turn === 'L' ? 4 : l.turn === 'R' ? 2 : 0);
+      const l = LANES[n], g = g0 + l.L / Math.max(3, l.spd) + (l.turn === 'U' ? 30 : l.turn === 'L' ? 4 : l.turn === 'R' ? 2 : 0) + (pen && pen.has(n) ? pen.get(n) : 0);
       if (g < (gs.has(n) ? gs.get(n) : 1e18)) { gs.set(n, g); prev.set(n, cur); H.push(n, g + Math.hypot(l.ex - gx, l.ez - gz) * VH); }
     }
   }
@@ -4932,6 +5000,17 @@ function pickClass() {
   for (const k of CLS) { r -= VCLASS[k].w; if (r <= 0) return k; } return 'sedan';
 }
 function laneFree(l, s, need) { for (const o of l.occ) if (Math.abs(o.s - s) < need) return false; return true; }
+function makeAgent(l, s, cls) {
+  const c = VCLASS[cls]; laneAt(l, s, _o);
+  // Szenario/Spawn: Platz auf dem Fahrstreifen freimachen bzw. prüfen
+  sim.agents = sim.agents.filter(o => !(o.lane === l && Math.abs(o.s - s) < (c.L + o.L) / 2 + 1.5 && !(o.broken > 0)));
+  if (sim.agents.some(o => o.lane === l && Math.abs(o.s - s) < (c.L + o.L) / 2 + 0.5)) return null;
+  const a = { id: sim.nextId++, cls, L: c.L, W: c.W, lane: l, s, v: Math.min(l.spd, 8) * (0.4 + Math.random() * 0.6), route: [l.id], ri: 0, x: _o.x, z: _o.z, yaw: Math.atan2(_o.hx, _o.hz),
+    f: 0.88 + Math.random() * 0.2, amax: c.a * (0.8 + Math.random() * 0.4), brake: false, blink: 0, wait: 0, stopDone: false, stuck: 0, nudge: 0, hazard: 0, acc: 0, broken: 0, lat: 0, latT: 0, hx: _o.hx, hz: _o.hz, why: '' };
+  planRoute(a);
+  l.occ.push({ a, s, v: a.v, L: a.L });
+  sim.agents.push(a); return a;
+}
 function spawnAgent(near, rmin, rmax) {
   const RL = sim.roadLanes;
   for (let tries = 0; tries < 40; tries++) {
@@ -4939,11 +5018,7 @@ function spawnAgent(near, rmin, rmax) {
     const d = Math.hypot(_o.x - near.x, _o.z - near.z); if (d < rmin || d > rmax) continue;
     const cls = pickClass(), c = VCLASS[cls]; if (c.L > l.L - 2) continue;
     if (!laneFree(l, s, c.L + 8)) continue;
-    const a = { id: sim.nextId++, cls, L: c.L, W: c.W, lane: l, s, v: Math.min(l.spd, 8) * (0.4 + Math.random() * 0.6), route: [l.id], ri: 0, x: _o.x, z: _o.z, yaw: Math.atan2(_o.hx, _o.hz),
-      f: 0.88 + Math.random() * 0.2, amax: c.a * (0.8 + Math.random() * 0.4), brake: false, blink: 0, wait: 0, stopDone: false, stuck: 0, nudge: 0, hazard: 0, acc: 0 };
-    planRoute(a);
-    l.occ.push({ a, s, v: a.v, L: a.L });
-    sim.agents.push(a); return a;
+    return makeAgent(l, s, cls);
   }
   return null;
 }
@@ -5012,7 +5087,8 @@ function idmAcc(v, v0, gap, dv, amax) {
 function planAccel(a, dt, opts = {}) {
   const v = a.v, amax = a.amax || 2.2, look = Math.max(60, v * v / (2 * IDM.b) + 35);
   let lane = a.lane, v0 = lane.spd * (a.f || 1), acc = 1e9, D = -a.s, leader = null;
-  const lim = (gap, vl) => { const x = idmAcc(v, v0, gap, v - vl, amax); if (x < acc) acc = x; };
+  let why = '', whyD = 0;
+  const lim = (gap, vl, w = 'lead') => { const x = idmAcc(v, v0, gap, v - vl, amax); if (x < acc) { acc = x; why = w; whyD = gap; } };
   let blinkTurn = 0;
   for (let k = a.ri; k < a.route.length && D < look; k++) {
     const l = LANES[a.route[k]], startS = k === a.ri ? a.s : 0;
@@ -5020,7 +5096,7 @@ function planAccel(a, dt, opts = {}) {
     if (k > a.ri) { const vl = l.spd * (a.f || 1); const allow = Math.sqrt(vl * vl + 2 * 1.8 * Math.max(0, D)); if (allow < v0) v0 = Math.max(vl, Math.min(v0, allow)); if (l.c && l.turn !== 'S' && D < 40 && !blinkTurn) blinkTurn = l.turn === 'L' || l.turn === 'U' ? 1 : -1; }
     else if (l.c && l.turn !== 'S') blinkTurn = l.turn === 'L' || l.turn === 'U' ? 1 : -1;
     // Vorausfahrende auf dieser Spur
-    if (!leader) {
+    if (!leader && !opts.noLead) {
       let best = null;
       for (const o of l.occ) { if (o.a === a) continue; if (k === a.ri && o.s <= a.s) continue; if (!best || o.s < best.s) best = o; }
       if (best) { leader = best; lim(D + best.s - best.L / 2 - (a.L / 2), best.v); }
@@ -5029,49 +5105,49 @@ function planAccel(a, dt, opts = {}) {
     if (l.cr) for (const [ci, cs] of l.cr) {
       if (cs < startS - 0.5) continue;
       const dist = D + cs - 3 - a.L / 2;
-      if (xingBusy(ci, a) && dist > v * v / (2 * 7) - 1) lim(dist, 0);
+      if (xingBusy(ci, a) && dist > v * v / (2 * 7) - 1) lim(dist, 0, 'xing');
     }
     // Ampel mitten auf der Strecke (Fußgängerampel)
     if (l.ms && l.ms[1] > startS - 0.2) {
       const st = sigState(l.ms[0], 0, sim.t), dist = D + l.ms[1] - a.L / 2;
-      if (st === 'R' || (st === 'Y' && dist > v * v / (2 * 4))) lim(dist, 0);
+      if (st === 'R' || (st === 'Y' && dist > v * v / (2 * 4))) lim(dist, 0, 'msig');
     }
     // Ende der Spur: Kreuzung
     const nxt = k + 1 < a.route.length ? LANES[a.route[k + 1]] : null;
     if (!l.c) {
       const dStop = D + l.L - a.L / 2 - 0.8;
       if (nxt && nxt.c && dStop < look) {
-        let stop = false, green = false;
+        let stop = false, green = false, sw = '';
         if (l.sg) {
           const st = sigState(l.sg[0], l.sg[1], sim.t);
-          if (st === 'R') stop = true;
-          else if (st === 'Y') { if (dStop > v * v / (2 * 4.5) || dStop > 2.5 && v < 4) stop = true; }
-          else { green = true; if (k === a.ri && dStop < 14 && !(a.bold > 0) && mustYield(a, l, nxt, true)) stop = true; }
+          if (st === 'R') { stop = true; sw = 'sigR'; }
+          else if (st === 'Y') { if (dStop > v * v / (2 * 4.5) || dStop > 2.5 && v < 4) { stop = true; sw = 'sigY'; } }
+          else { green = true; if (k === a.ri && dStop < 14 && !(a.bold > 0) && mustYield(a, l, nxt, true)) { stop = true; sw = 'left'; } }
           a._c = !stop && k === a.ri && dStop < 14 && !leader;
         } else if (k === a.ri && NODES[nxt.nd].deg >= 3) {
-          if (l.sn === 'stop' && !a.stopDone) { stop = true; if (v < 0.4 && dStop < 4) a.stopDone = true; }
-          if (!stop && dStop < 16 && !(a.bold > 0) && mustYield(a, l, nxt, false)) stop = true;
+          if (l.sn === 'stop' && !a.stopDone) { stop = true; sw = 'stop'; if (v < 0.4 && dStop < 4) a.stopDone = true; }
+          if (!stop && dStop < 16 && !(a.bold > 0) && mustYield(a, l, nxt, false)) { stop = true; sw = 'yield'; }
           a._c = !stop && dStop < 9 && !leader;
         }
         // Kreuzung nicht blockieren: Ausfahrt muss Platz haben
         if (!stop && k === a.ri && dStop < 20 && k + 2 < a.route.length && !(a.bold > 0)) {
           const out = LANES[a.route[k + 2]];
-          for (const o of out.occ) if (o.a !== a && o.s - o.L / 2 < a.L + 2.5 && o.v < 2) { stop = true; break; }
-          if (!stop) for (const o of nxt.occ) if (o.a !== a && o.v < 0.5) { stop = true; break; }
+          for (const o of out.occ) if (o.a !== a && o.s - o.L / 2 < a.L + 2.5 && o.v < 2) { stop = true; sw = 'box'; break; }
+          if (!stop) for (const o of nxt.occ) if (o.a !== a && o.v < 0.5) { stop = true; sw = 'box'; break; }
         }
-        if (stop) { lim(Math.max(0.05, dStop), 0); if (k === a.ri) a.waitJ = true; break; }
+        if (stop) { lim(Math.max(0.05, dStop), 0, sw); if (k === a.ri) a.waitJ = true; break; }
         if (a._c && k === a.ri) nxt.com.push(a);
         a._c = false;
         void green;
       }
-      if (!nxt && !opts.noEnd) { lim(Math.max(0.05, D + l.L - 6 - a.L / 2), 0); }
+      if (!nxt && !opts.noEnd) { lim(Math.max(0.05, D + l.L - 6 - a.L / 2), 0, 'end'); }
     }
     D += l.L - (k === a.ri ? 0 : 0);
     if (k === a.ri) D = l.L - a.s;
   }
   a.blinkTurn = blinkTurn;
-  if (acc > 1e8) acc = idmAcc(v, v0, 1e4, 0, amax);
-  return { acc, v0, leader };
+  if (acc > 1e8) { acc = idmAcc(v, v0, 1e4, 0, amax); why = v < v0 - 0.5 ? 'accel' : 'cruise'; }
+  return { acc, v0, leader, why, whyD };
 }
 
 // Sonde nach vorne: andere Fahrzeuge (inkl. Spieler) im Fahrkorridor, auch quer in Kreuzungen
@@ -5114,6 +5190,7 @@ function updateAgents(dt, player) {
   for (const a of sim.agents) {
     a.waitJ = false;
     const r = planAccel(a, dt);
+    a.why = r.why;
     let acc = r.acc;
     const hx = Math.sin(a.yaw), hz = Math.cos(a.yaw);
     if (a.nudge > 0) a.nudge -= dt;
@@ -5122,6 +5199,8 @@ function updateAgents(dt, player) {
       if (p) { const x = idmAcc(a.v, r.v0, p[0], a.v - p[1], a.amax); if (x < acc) acc = x; }
     }
     if (a.hazard > 0) { a.hazard -= dt; acc = Math.min(acc, -6); }
+    if (a.broken > 0) { a.broken -= dt; a.hazard = Math.max(a.hazard, 0.2); acc = -7; a.lat += (a.latT - a.lat) * Math.min(1, dt * 0.8); if (a.broken <= 0) { a.latT = 0; a.hazard = 0; } }
+    else if (a.lat) { a.lat += (0 - a.lat) * Math.min(1, dt * 0.7); if (Math.abs(a.lat) < 0.02) a.lat = 0; }
     acc = clamp(acc, -8.5, a.amax);
     a.acc = acc;
     a.v = Math.max(0, a.v + acc * dt);
@@ -5141,21 +5220,32 @@ function updateAgents(dt, player) {
       if (a.route.length - a.ri < 4) planRoute(a);
     }
     laneAt(a.lane, a.s, _o);
-    a.x = _o.x; a.z = _o.z;
+    a.hx = _o.hx; a.hz = _o.hz; a.x = _o.x - _o.hz * (a.lat || 0); a.z = _o.z + _o.hx * (a.lat || 0);
     const ty = Math.atan2(_o.hx, _o.hz); let dy = ty - a.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); a.yaw += dy * Math.min(1, dt * 10);
     // Entfernen außerhalb der Sichtweite
     const dp = Math.hypot(a.x - player.x, a.z - player.z);
-    if (dp > sim.despawn || (a.stuck > 30 && dp > 45)) remove.push(a);
+    if (dp > sim.despawn || (a.stuck > 30 && dp > 45 && !(a.broken > 0))) remove.push(a);
   }
   if (remove.length) sim.agents = sim.agents.filter(a => !remove.includes(a));
+  // zufällige Pannen in Sichtweite (Abstand 60–260 m), etwa jede Minute
+  sim.breakT = (sim.breakT == null ? 40 + Math.random() * 40 : sim.breakT) - dt;
+  if (sim.breakT <= 0 && sim.randomBreak !== false) {
+    sim.breakT = 55 + Math.random() * 50;
+    const cand = sim.agents.filter(a => !a.lane.c && !(a.broken > 0) && a.s > 8 && a.s < a.lane.L - 15 && a.cls !== 'bus' && Math.hypot(a.x - player.x, a.z - player.z) > 60 && Math.hypot(a.x - player.x, a.z - player.z) < 260);
+    if (cand.length) breakDown(cand[(Math.random() * cand.length) | 0]);
+  }
   // Nachspawnen
   let n = 0;
   while (sim.agents.length < sim.nV && n++ < 4) spawnAgent(player, sim.spawnR[0], sim.spawnR[1]);
-  while (sim.agents.length > sim.nV) sim.agents.pop();
+  if (sim.agents.length > sim.nV + 8 || (sim.agents.length > sim.nV && Math.random() < 0.05)) { // überzählige, weit entfernte Fahrzeuge entfernen (nie Pannenfahrzeuge)
+    let fi = -1, fd = -1; sim.agents.forEach((a, i) => { if (a.broken > 0) return; const d = Math.hypot(a.x - player.x, a.z - player.z); if (d > fd) { fd = d; fi = i; } });
+    if (fi >= 0) sim.agents.splice(fi, 1);
+  }
 }
 
 // Matrizen für Instancing
 const _m = new THREE.Matrix4(), _q = new Q4(), _p = new V3(), _s = new V3(), _e = new THREE.Euler(), _ml = new THREE.Matrix4(), _c = new THREE.Color();
+const C_WHITE = new THREE.Color(1, 1, 1);
 const C_TAIL_ON = new THREE.Color(1, 0.06, 0.05), C_TAIL_OFF = new THREE.Color(0.28, 0.02, 0.02), C_BL_ON = new THREE.Color(1, 0.5, 0.04), C_BL_OFF = new THREE.Color(0.1, 0.06, 0.02);
 function drawAgents() {
   const cnt = {}; CLS.forEach(k => cnt[k] = 0);
@@ -5166,6 +5256,7 @@ function drawAgents() {
     const c = VCLASS[a.cls];
     _e.set(0, a.yaw, 0); _q.setFromEuler(_e);
     _m.compose(_p.set(a.x, 0, a.z), _q, _s.set(1, 1, 1));
+    VMESH[a.cls].setColorAt(cnt[a.cls], (ap.tint && ap.tint.get(a)) || C_WHITE);
     VMESH[a.cls].setMatrixAt(cnt[a.cls]++, _m);
     const ty = Math.min(c.H * 0.55, 1.05), tz = -c.L / 2 - 0.02;
     const bOn = a.brake ? C_TAIL_ON : C_TAIL_OFF;
@@ -5179,7 +5270,7 @@ function drawAgents() {
     put(BLINK, nb++, new V3(-c.W / 2 + 0.02, ty - 0.05, -c.L / 2 + 0.3), 0.06, 0.07, 0.22, colR);
     _ml.compose(_p.set(0, 0.02, 0), _q.identity(), _s.set(c.W * 1.5, 1, c.L * 1.25)); _ml.premultiply(_m); BLOB.setMatrixAt(nblob++, _ml);
   }
-  CLS.forEach(k => { VMESH[k].count = cnt[k]; VMESH[k].instanceMatrix.needsUpdate = true; });
+  CLS.forEach(k => { VMESH[k].count = cnt[k]; VMESH[k].instanceMatrix.needsUpdate = true; VMESH[k].instanceColor.needsUpdate = true; });
   // Spieler-Blinker/Schatten
   _e.set(0, PL.yaw, 0); _q.setFromEuler(_e); _m.compose(_p.set(PL.x, 0, PL.z), _q, _s.set(1, 1, 1));
   _ml.compose(_p.set(0, 0.02, 0), _q.identity(), _s.set(2.9, 1, 5.6)); _ml.premultiply(_m); BLOB.setMatrixAt(nblob++, _ml);
@@ -5195,12 +5286,11 @@ function drawAgents() {
 // ================= Fußgänger =================
 const PED_MAX = 90;
 const pedGeo = (() => {
-  const body = new THREE.CylinderGeometry(0.17, 0.2, 1.15, 10); body.translate(0, 0.62, 0);
-  const sh = new THREE.CylinderGeometry(0.24, 0.17, 0.42, 10); sh.translate(0, 1.32, 0);
-  const head = new THREE.SphereGeometry(0.13, 12, 8); head.translate(0, 1.66, 0);
-  return mergeGeos([body, sh, head].map(g => colorize(g.toNonIndexed(), lin(0xd0d3d7))));
+  const pts = [[0, 0], [0.09, 0], [0.11, 0.06], [0.12, 0.45], [0.15, 0.82], [0.17, 0.92], [0.19, 1.15], [0.22, 1.33], [0.2, 1.4], [0.12, 1.45], [0.055, 1.48], [0.06, 1.53], [0.1, 1.58], [0.115, 1.65], [0.1, 1.73], [0.05, 1.77], [0, 1.78]].map(p => new THREE.Vector2(p[0], p[1]));
+  const g = new THREE.LatheGeometry(pts, 16).toNonIndexed(); g.scale(1, 1, 0.68); g.computeVertexNormals();
+  return mergeGeos([colorize(g, lin(0xd3d6da))]);
 })();
-const PED = new THREE.InstancedMesh(pedGeo, VIZ_MAT, PED_MAX); PED.count = 0; PED.frustumCulled = false; PED.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(PED);
+const PED = new THREE.InstancedMesh(pedGeo, VIZ_MAT, PED_MAX); PED.setColorAt(0, new THREE.Color(1, 1, 1)); PED.count = 0; PED.frustumCulled = false; PED.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(PED);
 function spawnPed(near, rmin, rmax) {
   if (!WALKS.length) return;
   for (let t = 0; t < 30; t++) {
@@ -5279,9 +5369,9 @@ function updatePeds(dt, player) {
     if (i >= PED_MAX) break;
     const moving = p.st === 'walk' || p.st === 'cross' || p.st === 'corner', bob = moving ? Math.abs(Math.sin(p.ph)) * 0.05 : 0;
     _e.set(0, p.yaw, moving ? Math.sin(p.ph) * 0.04 : 0); _q.setFromEuler(_e);
-    _m.compose(_p.set(p.x, bob, p.z), _q, _s.set(1, 1, 1)); PED.setMatrixAt(i++, _m);
+    _m.compose(_p.set(p.x, bob, p.z), _q, _s.set(1, 1, 1)); PED.setColorAt(i, (ap.tint && ap.tint.get(p)) || C_WHITE); PED.setMatrixAt(i++, _m);
   }
-  PED.count = i; PED.instanceMatrix.needsUpdate = true;
+  PED.count = i; PED.instanceMatrix.needsUpdate = true; PED.instanceColor.needsUpdate = true;
 }
 
 // ================= Mein Auto: Tesla Roadster (Modell aus Tesla_Roadster_3D, nur gelesen) =================
@@ -5290,7 +5380,7 @@ const carBody = new THREE.Group(); carRoot.add(carBody);
 const emitW = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: lin(0xeaf2ff), emissiveIntensity: 2.2 });
 const emitR = new THREE.MeshStandardMaterial({ color: 0x400000, emissive: lin(0xff1a24), emissiveIntensity: 1.2 });
 // Platzhalter, bis das GLB geladen ist
-const placeholder = new THREE.Mesh(profileGeo(VCLASS.pod.body.map(p => [p[0] * 1.17, p[1] * 0.85]), 1.9, 0.1), new THREE.MeshStandardMaterial({ color: lin(0xb3122a), roughness: 0.35, metalness: 0.3 }));
+const placeholder = new THREE.Mesh(loftBody(VCLASS.pod), new THREE.MeshStandardMaterial({ color: lin(0xb3122a), roughness: 0.35, metalness: 0.3 }));
 carBody.add(placeholder);
 const glb = { car: null, paint: null };
 function b64buf(id) { const s = atob(document.getElementById(id).textContent.trim()), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; }
@@ -5417,7 +5507,12 @@ function land(h, up, fw) {
   if (Math.abs(car.rollAcc) > 5) toast('Kickflip!'); else if (car.airT > 1.2) toast(`Airtime ${fmt(car.airT)} s`);
 }
 // Bodenhöhe unter der Fahrzeugkontur (Mitte + Front + Heck) – für Wandkollision
-function bodyHeight(x, z, yaw) { const fx = Math.sin(yaw) * 2.05, fz = Math.cos(yaw) * 2.05; return Math.max(heightAt(x, z), heightAt(x + fx, z + fz), heightAt(x - fx, z - fz)); }
+const FOOT = [[0, 0], [0.86, 2.08], [-0.86, 2.08], [0.86, -2.1], [-0.86, -2.1], [0.95, 0], [-0.95, 0], [0, 2.2], [0, -2.2], [0.92, 1.05], [-0.92, 1.05], [0.92, -1.05], [-0.92, -1.05]];
+function bodyHeight(x, z, yaw) { // höchster Punkt unter der Fahrzeugkontur
+  const s = Math.sin(yaw), c = Math.cos(yaw); let h = 0;
+  for (const [lx, lz] of FOOT) h = Math.max(h, heightAt(x + c * lx + s * lz, z - s * lx + c * lz));
+  return h;
+}
 
 // ================= Physik =================
 function step(dt) {
@@ -5475,7 +5570,7 @@ function groundStep(dt, T, gasOK) {
   car.aLong = a;
   car.brakeLight = (brk && vF > 0.3) || a < -1.2 ? 1 : 0;
   a -= DRAG * vF * Math.abs(vF) + 0.12 * Math.sign(vF) + car.fan * 0.15 * Math.sign(vF);
-  if (gasOK && T.rear && (K('ShiftLeft') || K('ShiftRight'))) { thr.B = true; if (vF < VMAX) a += T.rear; }
+  if (gasOK && T.rear && (K('ShiftLeft') || K('ShiftRight') || ap.boost)) { thr.B = true; if (vF < VMAX) a += T.rear; }
   if (hb) a -= Math.sign(vF) * Math.min(Math.abs(vF) / dt, 4);
   vF += a * dt;
   if (!gas && !brk && !thr.B && Math.abs(vF) < 0.2 && (ap.accel === null || ap.accel <= 0)) vF = 0;
@@ -5485,7 +5580,9 @@ function groundStep(dt, T, gasOK) {
   const yIn = (K('KeyQ') ? 1 : 0) - (K('KeyE') ? 1 : 0);
   if (yIn && T.rocket && gasOK) { desired += yIn * 2.2; thr.Y = true; }
   car.yawRate += (desired - car.yawRate) * Math.min(1, dt * (hb || thr.Y ? 3 : 10));
+  const yaw0 = car.yaw;
   car.yaw += car.yawRate * dt;
+  if (bodyHeight(car.pos.x, car.pos.z, car.yaw) > car.pos.y + 0.6 && bodyHeight(car.pos.x, car.pos.z, yaw0) <= car.pos.y + 0.6) { car.yaw = yaw0; car.yawRate = 0; }
   const vx = f.x * vF + r.x * vL, vz = f.z * vF + r.z * vL;
   f.set(Math.sin(car.yaw), 0, Math.cos(car.yaw)); r.set(-Math.cos(car.yaw), 0, Math.sin(car.yaw));
   vF = vx * f.x + vz * f.z; vL = vx * r.x + vz * r.z;
@@ -5495,12 +5592,17 @@ function groundStep(dt, T, gasOK) {
   car.vel.set(f.x * vF + r.x * vL, 0, f.z * vF + r.z * vL);
   // Bewegen + Kollision mit Gebäuden
   const ox = car.pos.x, oz = car.pos.z, oy = car.pos.y;
-  car.pos.x += car.vel.x * dt; car.pos.z += car.vel.z * dt;
+  const dx = car.vel.x * dt, dz = car.vel.z * dt, wall = (x, z) => bodyHeight(x, z, car.yaw) > oy + 0.6;
+  car.pos.x += dx; car.pos.z += dz;
   let nh = heightAt(car.pos.x, car.pos.z);
-  if (bodyHeight(car.pos.x, car.pos.z, car.yaw) > oy + 0.6) {
-    const sp = car.vel.length(); car.pos.x = ox; car.pos.z = oz; car.vel.multiplyScalar(-0.2);
-    if (sp > 6) { shake = Math.min(1, sp / 30); thud(Math.min(1, sp / 30)); toast('Kollision mit Gebäude'); if (ap.on) stopAP('Autopilot aus – Kollision'); }
-    nh = heightAt(ox, oz);
+  if (wall(car.pos.x, car.pos.z)) {
+    // an der Wand entlanggleiten statt hineinzufahren
+    const sp = car.vel.length(); let hitV = sp;
+    if (!wall(ox + dx, oz)) { car.pos.set(ox + dx, oy, oz); hitV = Math.abs(car.vel.z); car.vel.z *= -0.15; car.vel.x *= 0.85; }
+    else if (!wall(ox, oz + dz)) { car.pos.set(ox, oy, oz + dz); hitV = Math.abs(car.vel.x); car.vel.x *= -0.15; car.vel.z *= 0.85; }
+    else { car.pos.set(ox, oy, oz); car.vel.multiplyScalar(-0.2); }
+    if (hitV > 5) { shake = Math.min(1, hitV / 30); thud(Math.min(1, hitV / 30)); toast('Kollision mit Gebäude'); if (ap.on && !brain.hop) stopAP('Autopilot aus – Kollision'); }
+    nh = heightAt(car.pos.x, car.pos.z);
   }
   // Lift / Schweben (Rocket)
   if (T.rocket && gasOK && (K('KeyR') || (car.hover && car.hoverY > oy + 0.15))) { car.vy = Math.max(car.vy, 0); toAir(); return; }
@@ -5517,16 +5619,17 @@ function airStep(dt, T, gasOK) {
   car.vel.y -= G * dt;
   car.brakeLight = 0; car.aLong = 0;
   // Heck-Thruster
-  if (gasOK && T.rear && (K('ShiftLeft') || K('ShiftRight'))) { car.vel.addScaledVector(fw, T.rear * dt); thr.B = true; }
+  if (gasOK && T.rear && (K('ShiftLeft') || K('ShiftRight') || (ap.air && ap.air.thrust))) { car.vel.addScaledVector(fw, T.rear * dt); thr.B = true; }
   // Lift-Düsen (4 Ecken) + Schwebe-Regler
   if (T.rocket && gasOK && (K('KeyR') || car.hover)) {
     let la = up.y > 0.25 ? 14 : 0;
     if (car.hover && !K('KeyR')) la = up.y > 0.25 ? clamp((G + 2.6 * (car.hoverY - car.pos.y) - 2.4 * car.vel.y) / up.y, 0, 16) : 0;
     if (la > 0.3) { car.vel.addScaledVector(up, la * dt); thr.H = true; }
-    if (car.hover) { car.vel.x *= Math.exp(-0.7 * dt); car.vel.z *= Math.exp(-0.7 * dt); }
+    if (car.hover) { const damp = ap.air ? (ap.air.glide ? 0.02 : ap.air.brake ? 1.7 : 0.7) : 0.7; car.vel.x *= Math.exp(-damp * dt); car.vel.z *= Math.exp(-damp * dt); }
   }
   // Lage: W/S nicken, Q/E gieren, A/D rollen (Rocket), sonst Lageregelung zurück in die Waagerechte
   const inp = new V3((K('KeyW') ? 1 : 0) - (K('KeyS') ? 1 : 0), (K('KeyQ') ? 1 : 0) - (K('KeyE') ? 1 : 0), (K('KeyD') ? 1 : 0) - (K('KeyA') ? 1 : 0));
+  if (ap.air) { inp.set(0, ap.air.yaw, 0); }
   if (T.rocket && gasOK) {
     let h = new V3(fw.x, 0, fw.z); if (h.lengthSq() < 0.04) h.set(-up.x, 0, -up.z); if (h.lengthSq() < 1e-4) h.set(Math.sin(car.yaw), 0, Math.cos(car.yaw));
     const qt = new Q4().setFromEuler(new THREE.Euler(0, Math.atan2(h.x, h.z), 0));
@@ -5548,7 +5651,7 @@ function airStep(dt, T, gasOK) {
   car.vel.multiplyScalar(1 - DRAG * car.vel.length() * dt);
   const ox = car.pos.x, oy = car.pos.y, oz = car.pos.z;
   car.pos.addScaledVector(car.vel, dt);
-  const h = heightAt(car.pos.x, car.pos.z);
+  const h = bodyHeight(car.pos.x, car.pos.z, car.yaw);
   if (car.pos.y <= h) {
     if (oy >= h - 0.5) land(h, upOf(q), fwdOf(q));
     else { car.pos.x = ox; car.pos.z = oz; car.vel.x *= -0.3; car.vel.z *= -0.3; shake = .6; thud(.6); const h2 = heightAt(ox, oz); if (car.pos.y <= h2) land(h2, upOf(q), fwdOf(q)); }
@@ -5630,7 +5733,7 @@ function startAP() {
   let r = astar(n.l.id, ap.dest.id, 120000);
   if (!r) { ap.dest = randomDest(); r = astar(n.l.id, ap.dest.id, 120000); }
   if (!r) { toast('Keine Route gefunden'); return false; }
-  PL.route = r; PL.ri = 0; PL.lane = n.l; PL.s = n.s; PL.stopDone = false;
+  setRoute(r, n.l, n.s); PL.stopDone = false; brainReset();
   ap.on = true; ap.arrived = false; car.hover = false;
   if (car.gear === 'P' || car.gear === 'N') car.gear = 'D';
   toast('Autopilot aktiv'); tick(0.6);
@@ -5640,44 +5743,21 @@ function reroute() {
   if (!ap.on || !ap.dest) return;
   const n = nearestLane(car.pos.x, car.pos.z, Math.sin(car.yaw), Math.cos(car.yaw), 8);
   const r = n && astar(n.l.id, ap.dest.id, 120000);
-  if (r) { PL.route = r; PL.ri = 0; PL.lane = n.l; PL.s = n.s; } else stopAP('Autopilot aus – keine Route');
+  if (r) setRoute(r, n.l, n.s); else stopAP('Autopilot aus – keine Route');
 }
 function stopAP(msg) {
   if (!ap.on) { ap.steer = null; ap.accel = null; return; }
-  ap.on = false; ap.steer = null; ap.accel = null; PL.blinkTurn = 0;
+  ap.on = false; ap.steer = null; ap.accel = null; ap.air = null; ap.boost = false; PL.blinkTurn = 0;
+  if (brain.hop) { brain.hop = null; car.hoverY = car.pos.y; }
+  brainReset(); closeProposal();
   if (msg) toast(msg);
 }
+function setRoute(r, lane, s) { PL.route = r; PL.ri = 0; PL.lane = lane; PL.s = s; PL.rcum = [0]; for (let k = 0; k < r.length; k++) PL.rcum.push(PL.rcum[k] + LANES[r[k]].L); }
 function routeAhead(dist, out) { // Punkt in „dist“ m vor dem Spieler entlang der Route
   let k = PL.ri, s = PL.s + dist;
   while (k < PL.route.length - 1 && s > LANES[PL.route[k]].L) { s -= LANES[PL.route[k]].L; k++; }
   return laneAt(LANES[PL.route[k]], s, out);
 }
-const _ra = { x: 0, z: 0, hx: 0, hz: 0 };
-function apUpdate(dt) {
-  if (!ap.on) return;
-  if (car.mode !== 'ground') { stopAP('Autopilot aus'); return; }
-  if (!PL.lane) { ap.accel = -3; return; }
-  if (PL.bold > 0) PL.bold -= dt; else if (PL.wait > 20) { PL.bold = 4; PL.wait = 0; }
-  const r = planAccel(PL, dt);
-  let acc = r.acc;
-  const p = probe(PL, Math.sin(car.yaw), Math.cos(car.yaw));
-  if (p) { const x = idmAcc(PL.v, r.v0, p[0], PL.v - p[1], PL.amax); if (x < acc) acc = x; }
-  // Fußgänger direkt vor dem Auto
-  for (const q of sim.peds) { const rx = q.x - car.pos.x, rz = q.z - car.pos.z, al = rx * Math.sin(car.yaw) + rz * Math.cos(car.yaw), lat = Math.abs(rx * Math.cos(car.yaw) - rz * Math.sin(car.yaw)); if (al > 0 && al < 14 && lat < 1.6) acc = Math.min(acc, idmAcc(PL.v, r.v0, al - 2.4, PL.v, PL.amax)); }
-  ap.accel = clamp(acc, -8, PL.amax);
-  // Querregelung: Pure Pursuit
-  const v = Math.max(0, speedFwd()), Ld = clamp(4.5 + 0.38 * v, 5, 20);
-  routeAhead(Ld, _ra);
-  const rx = _ra.x - car.pos.x, rz = _ra.z - car.pos.z, fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
-  const fwd = rx * fx + rz * fz, left = rx * fz - rz * fx;
-  const alpha = Math.atan2(left, Math.max(0.1, fwd)), delta = Math.atan(2 * WB * Math.sin(alpha) / Ld);
-  const maxSteer = 0.6 / (1 + v * v / 700);
-  ap.steer = clamp(delta / maxSteer, -1, 1);
-  // Ziel erreicht?
-  const last = PL.ri >= PL.route.length - 1, rem = LANES[PL.route[PL.route.length - 1]].L - PL.s;
-  if (last && ((rem < 16 && v < 0.8) || rem < 2)) { ap.arrived = true; stopAP('Ziel erreicht'); car.gear = 'P'; car.vel.set(0, 0, 0); ap.dest = null; }
-}
-
 // ================= Geplanter Fahrweg: leuchtend blaues Band =================
 const PATH_N = 140;
 const pathGeo = new THREE.BufferGeometry();
@@ -5690,22 +5770,6 @@ const pathMat = new THREE.ShaderMaterial({
   fragmentShader: 'uniform float t; uniform float n; varying vec2 vUv; void main(){ float u = abs(vUv.x*2.0-1.0); float v = vUv.y/n; float edge = 1.0 - smoothstep(0.55, 1.0, u); float core = 1.0 - smoothstep(0.0, 0.35, u); float fade = smoothstep(0.0, 0.04, v) * (1.0 - smoothstep(0.65, 1.0, v)); float pulse = 0.85 + 0.15*sin(vUv.y*0.35 - t*5.0); vec3 c = vec3(0.12,0.42,1.0)*edge*0.9 + vec3(0.45,0.7,1.0)*core*0.55; gl_FragColor = vec4(c*fade*pulse, 1.0); }'
 });
 const pathMesh = new THREE.Mesh(pathGeo, pathMat); pathMesh.frustumCulled = false; pathMesh.renderOrder = 9; scene.add(pathMesh);
-function updatePath(t) {
-  pathMesh.visible = ap.on && PL.route.length > 0 && !!PL.lane;
-  if (!pathMesh.visible) return;
-  const total = Math.min(160, routeLeft()), step = total / (PATH_N - 1), o = {};
-  for (let i = 0; i < PATH_N; i++) {
-    const d = 2.3 + i * step; routeAhead(Math.min(d, total + 2.3), o);
-    const w = 0.85;
-    // Startpunkt: Fahrzeugfront (Blend vom Auto auf die Spur)
-    let x = o.x, z = o.z;
-    if (i < 6) { const k = i / 6, cx = car.pos.x + Math.sin(car.yaw) * (2.3 + i * step), cz = car.pos.z + Math.cos(car.yaw) * (2.3 + i * step); x = cx + (x - cx) * k; z = cz + (z - cz) * k; }
-    pathPos.set([x - o.hz * w, 0.06, z + o.hx * w, x + o.hz * w, 0.06, z - o.hx * w], i * 6);
-    pathUV.set([0, i * step, 1, i * step], i * 4);
-  }
-  pathMat.uniforms.t.value = t; pathMat.uniforms.n.value = Math.max(1, total);
-  pathGeo.attributes.position.needsUpdate = true; pathGeo.attributes.uv.needsUpdate = true;
-}
 function routeLeft() { let d = LANES[PL.route[PL.ri]].L - PL.s; for (let k = PL.ri + 1; k < PL.route.length; k++) d += LANES[PL.route[k]].L; return Math.max(0, d); }
 // Ziel-Markierung
 const destMark = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.2, 40), new THREE.MeshBasicMaterial({ color: lin(0x3d8bff), transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false, side: THREE.DoubleSide }));
@@ -5721,6 +5785,371 @@ function nextManeuver() {
     d += l.L;
   }
   return { turn: 'Z', d, name: LANES[PL.route[PL.route.length - 1]].name || 'Ziel' };
+}
+
+// ================= Autopilot-Gehirn =================
+// Jeder Frame: Wahrnehmen (Objekte im Routen-Koordinatensystem) → Lage bewerten (Vordermann, Stau, Panne,
+// Gegenverkehr, Fußgänger, Ampel/Vorrang) → Entscheiden (folgen, ausweichen, überholen, warten, umleiten,
+// Kaltgas-Manöver vorschlagen) → Trajektorie (Querversatz-Profil + Tempo) → Regeln.
+const brain = { obs: [], smp: [], S0: 0, lead: null, jam: null, plan: { o0: 0, o1: 0, Ss: 0, Lt: 10, Sr: 1e9, Lr: 14 }, ov: null, hop: null, prop: null,
+  propCool: 0, propKey: '', status: '', statusK: '', waitJam: 0, rerouteCool: 0, why: '', oncoming: null };
+ap.tint = new Map(); ap.air = null; ap.boost = false;
+const T_LEAD = new THREE.Color(0.55, 0.74, 1.0), T_JAM = new THREE.Color(1.0, 0.8, 0.45), T_BROKEN = new THREE.Color(1.0, 0.55, 0.3), T_THREAT = new THREE.Color(1.0, 0.45, 0.45), T_PED = new THREE.Color(0.55, 0.78, 1.0);
+function brainReset() { Object.assign(brain, { lead: null, jam: null, ov: null, prop: null, waitJam: 0, plan: { o0: 0, o1: 0, Ss: 0, Lt: 10, Sr: 1e9, Lr: 14 } }); ap.boost = false; ap.tint.clear(); }
+const routeTotal = () => PL.rcum ? PL.rcum[PL.route.length] : 0;
+const egoS = () => PL.rcum[PL.ri] + PL.s;
+function routeAt(S, o) {
+  S = clamp(S, 0, routeTotal() - 0.01);
+  let lo = 0, hi = PL.route.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (PL.rcum[m] <= S) lo = m; else hi = m - 1; }
+  return laneAt(LANES[PL.route[lo]], S - PL.rcum[lo], o);
+}
+function routeIdx(S) { let k = 0; while (k < PL.route.length - 1 && PL.rcum[k + 1] <= S) k++; return k; }
+// Querversatz-Profil (links positiv): Übergang o0→o1 ab Ss über Lt, Rückkehr auf 0 ab Sr über Lr
+function offAt(S) {
+  const p = brain.plan, sm = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
+  let o = p.o0 + (p.o1 - p.o0) * sm((S - p.Ss) / p.Lt);
+  if (S > p.Sr) o *= 1 - sm((S - p.Sr) / p.Lr);
+  return o;
+}
+function setPlan(o1, Lt, Sr = 1e9, Lr = 14) { const S = egoS(); brain.plan = { o0: offAt(S), o1, Ss: S, Lt: Math.max(4, Lt), Sr, Lr }; }
+
+// ---------- Wahrnehmung ----------
+const _rp = {};
+function perceive() {
+  const S0 = egoS(), smp = [], T = routeTotal();
+  for (let S = Math.max(0, S0 - 24); S <= Math.min(T, S0 + 170); S += 2) { routeAt(S, _rp); smp.push({ S, x: _rp.x, z: _rp.z, hx: _rp.hx, hz: _rp.hz }); }
+  const toRoute = (x, z) => {
+    let best = 1e18, bi = -1;
+    for (let i = 0; i < smp.length; i++) { const d = (smp[i].x - x) ** 2 + (smp[i].z - z) ** 2; if (d < best) { best = d; bi = i; } }
+    if (bi < 0) return null; const p = smp[bi], rx = x - p.x, rz = z - p.z;
+    return { S: p.S + rx * p.hx + rz * p.hz, l: rx * p.hz - rz * p.hx, d: Math.sqrt(best), p };
+  };
+  const obs = [];
+  for (const a of sim.agents) {
+    if (Math.abs(a.x - PL.x) > 180 || Math.abs(a.z - PL.z) > 180) continue;
+    const r = toRoute(a.x, a.z); if (!r || r.d > 10) continue;
+    const c = VCLASS[a.cls], dot = a.hx * r.p.hx + a.hz * r.p.hz, ca = Math.abs(dot), sa = Math.sqrt(Math.max(0, 1 - ca * ca));
+    obs.push({ a, kind: 'car', S: r.S, l: r.l, vs: a.v * dot, vl: a.v * (a.hx * r.p.hz - a.hz * r.p.hx), hl: ca * c.L / 2 + sa * c.W / 2, hw: ca * c.W / 2 + sa * c.L / 2, H: c.H, stopped: a.v < 0.6, broken: a.broken > 0, why: a.why || '' });
+  }
+  for (const p of sim.peds) {
+    if (Math.abs(p.x - PL.x) > 80 || Math.abs(p.z - PL.z) > 80) continue;
+    const r = toRoute(p.x, p.z); if (!r || r.d > 9) continue;
+    obs.push({ p, kind: 'ped', S: r.S, l: r.l, vs: 0, hl: 0.35, hw: 0.35, H: 1.8, stopped: true, onRoad: p.st === 'cross' || p.st === 'wait' });
+  }
+  brain.obs = obs; brain.smp = smp; brain.S0 = S0; brain.toRoute = toRoute;
+}
+// Geometrie der eigenen Fahrbahn
+function roadRoom() {
+  const l = PL.lane, LW = CITY.lw;
+  if (!l || l.c) return { left: 0, right: 0, opp: false, lanesLeftSame: 0 };
+  const E = EDGES[l.e], same = l.d > 0 ? E.lf : E.lb, opp = l.d > 0 ? E.lb : E.lf;
+  return { left: (same - 1 - l.k + opp) * LW, right: l.k * LW, opp: opp > 0, lanesLeftSame: same - 1 - l.k, LW };
+}
+// Abstand bis zur nächsten Kreuzung (Haltelinie) entlang der Route
+function nextJunctionS() {
+  for (let k = PL.ri; k < PL.route.length - 1; k++) { const l = LANES[PL.route[k]], n = LANES[PL.route[k + 1]]; if (!l.c && n.c && NODES[n.nd].deg >= 3) return PL.rcum[k + 1]; }
+  return routeTotal();
+}
+// Stau-Analyse: Kette stehender Fahrzeuge in der eigenen Spur, Ursache am Kopf der Kette
+function analyseJam() {
+  const S0 = brain.S0, mine = brain.obs.filter(o => o.kind === 'car' && Math.abs(o.l) < 1.75 && o.S - o.hl > S0 + 1).sort((a, b) => a.S - b.S);
+  brain.lead = mine[0] || null;
+  if (!mine.length || !mine[0].stopped) { brain.jam = null; return; }
+  const chain = [mine[0]];
+  for (let i = 1; i < mine.length; i++) { const p = chain[chain.length - 1], o = mine[i]; if (o.S - o.hl - (p.S + p.hl) < 13 && (o.stopped || o.broken)) chain.push(o); else break; }
+  // Pannenfahrzeuge auch leicht seitlich versetzt vor der Kette erfassen
+  const head = chain[chain.length - 1];
+  for (const o of brain.obs) if (o.kind === 'car' && o.broken && !chain.includes(o) && Math.abs(o.l) < 2.6 && o.S - o.hl - (head.S + head.hl) < 13 && o.S > head.S) chain.push(o);
+  const E = chain[chain.length - 1], br = chain.find(o => o.broken);
+  const cause = br ? 'panne' : (E.why === 'sigR' || E.why === 'sigY') ? 'ampel' : (E.why === 'yield' || E.why === 'stop' || E.why === 'box' || E.why === 'left') ? 'kreuzung' : 'stau';
+  brain.jam = { chain, n: chain.length, Sstart: chain[0].S - chain[0].hl, Send: Math.max(...chain.map(o => o.S + o.hl)), cause, broken: br || null };
+}
+
+// ---------- Überhol-/Ausweichplanung ----------
+function passPlan(targets, boost) {
+  const S0 = brain.S0, room = roadRoom(), LW = CITY.lw, lim = (PL.lane ? PL.lane.spd : 13.9);
+  if (!PL.lane || PL.lane.c) return { ok: false, why: 'in der Kreuzung' };
+  let need = 0;
+  for (const t of targets) need = Math.max(need, t.l + t.hw + PL.W / 2 + 0.45);
+  if (need <= 0.15) return { ok: true, o: 0, inLane: true, Sfrom: S0, Sto: S0 };
+  const maxO = room.left + LW / 2 - PL.W / 2 - 0.25;
+  if (need > maxO) return { ok: false, why: room.opp || room.lanesLeftSame ? 'zu wenig Platz' : 'Einbahn / einspurig' };
+  const o = need > LW / 2 - PL.W / 2 ? Math.min(maxO, Math.max(need, LW * 0.95)) : need;
+  const Sfrom = Math.min(...targets.map(t => t.S - t.hl)), Sto = Math.max(...targets.map(t => t.S + t.hl)) + PL.L + 2;
+  if (Sto + 2 > nextJunctionS()) return { ok: false, why: 'Kreuzung im Überholweg' };
+  const crossing = o + PL.W / 2 > LW / 2 + 0.1, crossOpp = crossing && room.lanesLeftSame === 0;
+  // benötigte Zeit (mit/ohne Boost)
+  const vMax = boost ? lim + 5 : Math.max(6, lim * 0.9), acc = boost ? 9 : 2.4, dist = Sto + 6 - S0;
+  let v = Math.max(0, PL.v), t = 0, d = 0; while (d < dist && t < 40) { v = Math.min(vMax, v + acc * 0.1); d += v * 0.1; t += 0.1; }
+  const tNeed = t + 1.2;
+  let threat = null;
+  for (const ob of brain.obs) {
+    if (ob.kind !== 'car' || targets.includes(ob)) continue;
+    const inLeft = ob.l > LW * 0.45 && ob.l < o + LW * 0.9;
+    if (!inLeft) continue;
+    if (crossOpp) {
+      if (ob.vs < -0.3) { if (ob.S - ob.hl > S0 - 2 && ob.S + ob.vs * tNeed < Sto + 12) { threat = ob; break; } }
+      else if (ob.S + ob.hl > Sfrom - 4 && ob.S - ob.hl < Sto + 6) { threat = ob; break; } // steht/fährt im Gegenstreifen
+    } else {
+      // Nachbarspur gleiche Richtung: Lücke von hinten prüfen
+      if (ob.S > S0 - 30 && ob.S < Sto + 8 && (ob.S > S0 - 6 || ob.vs > PL.v + 1)) { threat = ob; break; }
+    }
+  }
+  if (threat) return { ok: false, why: crossOpp ? 'Gegenverkehr' : 'Nachbarspur belegt', threat, tNeed, o, Sfrom, Sto };
+  return { ok: true, o, Sfrom, Sto, tNeed, crossing, boost };
+}
+
+// ---------- Kaltgas-Sprung planen ----------
+function hopPlan(jam) {
+  const T = TRIMS[trim], S0 = brain.S0;
+  if (!T.rocket) return { ok: false, why: 'Lift-Düsen nur in der Ausführung Rocket' };
+  if (car.lockout) return { ok: false, why: 'Kaltgas gesperrt (lädt)' };
+  const tot = routeTotal(); let Sl = jam.Send + 7;
+  const SMAX = Math.min(S0 + 165, tot - 6);
+  const occupied = S => brain.obs.some(o => o.kind === 'car' && Math.abs(o.l) < 2.8 && o.S + o.hl > S - 7.5 && o.S - o.hl < S + 7.5);
+  while (Sl < SMAX && (occupied(Sl) || LANES[PL.route[routeIdx(Sl)]].c)) Sl += 2;
+  if (Sl >= SMAX) return { ok: false, why: 'kein freier Landeplatz in Reichweite' };
+  const D = Sl - S0; let hc = 5.5, turn = 0, prevH = null;
+  for (const o of jam.chain) hc = Math.max(hc, o.H + 2.4);
+  const p = {};
+  for (let S = S0; S <= Sl; S += 2.5) {
+    routeAt(S, p);
+    for (const sd of [-1.6, 0, 1.6]) hc = Math.max(hc, heightAt(p.x + p.hz * sd, p.z - p.hx * sd) + 2.2);
+    const h = Math.atan2(p.hx, p.hz); if (prevH != null) { let d = h - prevH; d = Math.atan2(Math.sin(d), Math.cos(d)); turn += Math.abs(d); } prevH = h;
+  }
+  if (hc > 14) return { ok: false, why: 'Gebäude zu hoch im Flugweg' };
+  if (turn > 1.8) return { ok: false, why: 'Flugweg zu kurvig' };
+  const tf = 1.5 + hc / 5 + D / 16 + 1.4, gas = Math.round(64 * tf + 50);
+  if (gas > car.gas - T.tank * 0.05) return { ok: false, why: `zu wenig Kaltgas: ${gas} L nötig, ${Math.round(car.gas)} L im Tank`, gasShort: true };
+  const over = brain.obs.filter(o => o.kind === 'car' && Math.abs(o.l) < 2.8 && o.S > S0 && o.S < Sl - 4).length;
+  return { ok: true, Sl, D, hc: Math.round(hc * 10) / 10, gas, tf, over };
+}
+
+// ---------- Vorschläge ----------
+const CAUSE_TXT = { panne: 'Pannenfahrzeug', ampel: 'Rückstau vor Ampel', kreuzung: 'Rückstau vor Kreuzung', stau: 'Stau' };
+function propose(jam, pass) {
+  const key = jam.cause + ':' + (jam.broken ? jam.broken.a.id : jam.chain[jam.chain.length - 1].a && jam.chain[jam.chain.length - 1].a.id);
+  if (brain.prop || brain.propCool > 0 && brain.propKey === key) return;
+  const opts = [], T = TRIMS[trim];
+  const hop = hopPlan(jam);
+  if (hop.ok) opts.push({ kind: 'hop', label: `Kaltgas-Sprung über ${hop.over} Fahrzeug${hop.over === 1 ? '' : 'e'}`, sub: `${Math.round(hop.D)} m · Flughöhe ${fmt(hop.hc)} m · ≈ ${hop.gas} L Kaltgas`, data: hop });
+  else if (T.tank) opts.push({ kind: 'hop', disabled: true, label: 'Kaltgas-Sprung nicht möglich', sub: hop.why });
+  if (T.rear && jam.cause === 'panne' && !pass.ok && pass.why === 'Gegenverkehr') {
+    const pb = passPlan(jam.chain, true);
+    if (pb.ok) { const g = Math.round(T.flow * pb.tNeed * 0.45); if (g < car.gas - T.tank * 0.05) opts.push({ kind: 'boost', label: 'Boost-Überholen mit Heck-Düsen', sub: `Lücke im Gegenverkehr reicht nur mit Schub · ${fmt(pb.tNeed, 1)} s · ≈ ${g} L`, data: pb }); }
+  }
+  if (!opts.length || (!opts.some(o => !o.disabled) && jam.cause !== 'panne')) return;
+  const est = jam.cause === 'panne' ? 'unbestimmt' : jam.cause === 'ampel' ? `≈ ${Math.round(jam.n * 2.5 + 10)} s` : `≈ ${Math.round(jam.n * 4)} s`;
+  opts.push({ kind: 'wait', label: 'Warten', sub: `Wartezeit ${est}` });
+  brain.prop = { key, title: `${CAUSE_TXT[jam.cause]} erkannt`, desc: `${jam.n === 1 ? 'Ein Fahrzeug steht' : jam.n + ' Fahrzeuge stehen'} vor dir${jam.cause === 'panne' ? ', Ausweichen ohne Kaltgas nicht möglich (' + (pass.why || '–') + ')' : ''}.`, opts };
+  brain.propKey = key; openProposal(brain.prop);
+  tick(0.6); setTimeout(() => tick(0.6), 140);
+}
+function acceptOption(i) {
+  const pr = brain.prop; if (!pr || !pr.opts[i]) return;
+  const o = pr.opts[i]; if (o.disabled) return; closeProposal(); brain.prop = null; brain.propCool = 25;
+  if (o.kind === 'hop') startHop(o.data);
+  else if (o.kind === 'boost') { brain.ov = { targets: brain.jam ? brain.jam.chain.slice() : [], boost: true, Sto: o.data.Sto, Sfrom: o.data.Sfrom }; setPlan(o.data.o, clamp(o.data.Sfrom - brain.S0 - 2, 7, 18), o.data.Sto, 16); toast('Boost-Überholen'); }
+  else toast('Autopilot wartet');
+}
+function dismissProposal() { if (!brain.prop) return; closeProposal(); brain.prop = null; brain.propCool = 25; }
+
+// ---------- Kaltgas-Sprung ausführen ----------
+function startHop(h) {
+  const S0 = egoS();
+  brain.hop = Object.assign({}, h, { ph: 'climb', S: S0, t: 0 });
+  brain.ov = null; brain.plan = { o0: 0, o1: 0, Ss: 0, Lt: 10, Sr: 1e9, Lr: 14 };
+  car.hover = true; car.hoverY = h.hc; ap.accel = null; ap.steer = 0;
+  toast('Kaltgas-Sprung');
+}
+function hopUpdate(dt) {
+  const h = brain.hop; h.t += dt;
+  const r = brain.toRoute(car.pos.x, car.pos.z); if (r) h.S = r.S;
+  const tgt = routeAt(h.S + 9, {}), want = Math.atan2(tgt.x - car.pos.x, tgt.z - car.pos.z);
+  const fw = fwdOf(car.q), cur = Math.atan2(fw.x, fw.z); let err = want - cur; err = Math.atan2(Math.sin(err), Math.cos(err));
+  const vAl = r ? car.vel.x * r.p.hx + car.vel.z * r.p.hz : 0;
+  if (car.lockout && h.ph !== 'descend') { h.ph = 'descend'; toast('Kaltgas knapp – Landung'); }
+  if (h.ph === 'climb') { car.hover = true; car.hoverY = h.hc; ap.air = { yaw: clamp(err * 1.2, -1, 1), thrust: false }; if (car.mode === 'air' && car.pos.y > h.hc - 1.6) h.ph = 'cruise'; }
+  else if (h.ph === 'cruise') {
+    car.hover = true; car.hoverY = h.hc;
+    // Geschwindigkeitsprofil bis zum Landepunkt: Schubimpuls, gleiten, mit Schwebe-Dämpfung abbremsen
+    const vT = clamp((h.Sl - h.S - 5) * 0.85, 2.5, 18);
+    ap.air = { yaw: clamp(err * 1.4, -1, 1), thrust: vAl < vT - 0.5 && Math.abs(err) < 0.45, glide: vAl <= vT + 1, brake: vAl > vT + 1 };
+    if (h.S >= h.Sl - 9) h.ph = 'descend';
+  } else if (h.ph === 'descend') {
+    const g0 = heightAt(car.pos.x, car.pos.z); car.hover = true; car.hoverY = car.pos.y > g0 + 2.2 ? g0 - 2 : g0;
+    ap.air = { yaw: clamp(err * 1.2, -1, 1), thrust: vAl < 3 && h.S < h.Sl - 2, glide: h.S < h.Sl - 1, brake: h.S >= h.Sl - 1 };
+    if (car.mode === 'ground') {
+      ap.air = null; car.hover = false; brain.hop = null;
+      const k = routeIdx(h.S); PL.ri = k; PL.s = h.S - PL.rcum[k]; PL.lane = LANES[PL.route[k]];
+      toast('Gelandet – Autopilot fährt weiter');
+    }
+  }
+  if (h && h.t > 25 && brain.hop) { h.ph = 'descend'; }
+}
+
+// ---------- Hauptregler ----------
+const URGENT = new Set(['hop', 'ov', 'prop', 'ped', 'cross', 'oncoming', 'sigR', 'sigY', 'xing', 'jam']);
+function say(k, txt) { // kurze Haltezeit gegen Flackern, dringende Meldungen sofort
+  const now = sim.t;
+  if (k === brain.statusK) { brain.status = txt; return; }
+  if (!URGENT.has(k) && now - (brain.statusT || 0) < 1.2) return;
+  brain.statusK = k; brain.status = txt; brain.statusT = now;
+}
+function apUpdate(dt) {
+  ap.tint.clear();
+  if (!ap.on) return;
+  if (brain.propCool > 0) brain.propCool -= dt;
+  if (brain.rerouteCool > 0) brain.rerouteCool -= dt;
+  if (brain.hop) { perceive(); hopUpdate(dt); const ph = brain.hop ? brain.hop.ph : 'land'; say('hop', ph === 'climb' ? 'Kaltgas-Sprung: Lift-Düsen, steige' : ph === 'cruise' ? 'Kaltgas-Sprung: überfliege den Stau' : 'Kaltgas-Sprung: Landeanflug'); return; }
+  ap.air = null;
+  if (car.mode !== 'ground') { stopAP('Autopilot aus'); return; }
+  if (!PL.lane || !PL.rcum) { ap.accel = -3; return; }
+  if (PL.bold > 0) PL.bold -= dt; else if (PL.wait > 20) { PL.bold = 4; PL.wait = 0; }
+  perceive(); analyseJam();
+  const S0 = brain.S0, v = Math.max(0, speedFwd()), jam = brain.jam, LW = CITY.lw;
+  // Längsplanung: Ampeln, Vorrang, Zebrastreifen, Kurven (ohne Spur-Vordermann – der kommt aus dem Korridor)
+  const r = planAccel(PL, dt, { noLead: true });
+  let acc = r.acc, v0 = r.v0, why = r.why, lead = null, leadGap = 1e9;
+  if (brain.ov && brain.ov.boost) v0 = PL.lane.spd + 5;
+  // Fußgänger nahe am Fahrweg -> vorsichtiger
+  let pedNear = null;
+  for (const o of brain.obs) if (o.kind === 'ped' && o.S > S0 && o.S < S0 + 30 && Math.abs(o.l - offAt(o.S)) < 3.6) { pedNear = o; break; }
+  if (pedNear && v0 > 6) { v0 = 6; acc = Math.min(acc, idmAcc(v, v0, 1e4, 0, PL.amax)); }
+  // Korridor-Hindernisse entlang des geplanten Fahrwegs
+  for (const o of brain.obs) {
+    if (o.S - o.hl <= S0 + 0.3 || o.S - o.hl > S0 + 90) continue;
+    const oe = offAt(o.S);
+    if (Math.abs(o.l - oe) < o.hw + PL.W / 2 + 0.35) {
+      const gap = o.S - o.hl - (S0 + PL.L / 2), vl = Math.max(0, o.vs), x = idmAcc(v, v0, gap, v - vl, PL.amax);
+      if (x < acc) { acc = x; why = o.kind === 'ped' ? 'ped' : o.vs < -0.5 ? 'oncoming' : 'lead'; }
+      if (gap < leadGap) { leadGap = gap; lead = o; }
+    }
+  }
+  // Notbremssonde für Querverkehr in Kreuzungen (kurze Reichweite)
+  const pr = probe(PL, Math.sin(car.yaw), Math.cos(car.yaw));
+  if (pr && pr[0] < 12) { const x = idmAcc(v, v0, pr[0], v - pr[1], PL.amax); if (x < acc) { acc = x; why = 'cross'; } }
+
+  // ---- Entscheidungen ----
+  const room = roadRoom();
+  if (brain.ov) {
+    const ov = brain.ov;
+    if (S0 > ov.Sto + 4 && Math.abs(offAt(S0)) < 0.35) { brain.ov = null; ap.boost = false; toast('Überholen abgeschlossen'); }
+    else {
+      // vor dem Ausscheren nochmal prüfen – abbrechen, wenn Gegenverkehr kommt
+      if (S0 < ov.Sfrom - 3) { const chk = passPlan(ov.targets, ov.boost); if (!chk.ok) { brain.ov = null; ap.boost = false; setPlan(0, 10); toast('Überholen abgebrochen – ' + chk.why); } }
+      if (brain.ov) { ap.boost = ov.boost && v < PL.lane.spd + 4 && S0 < ov.Sto; ov.targets.forEach(t => ap.tint.set(t.a, t.broken ? T_BROKEN : T_JAM)); }
+    }
+  } else if (jam && (jam.cause === 'panne' || jam.cause === 'stau') && jam.Sstart - S0 < 45) {
+    // Hindernis steht dauerhaft: selbst entscheiden – ausweichen/überholen, sonst Vorschlag
+    jam.chain.forEach(o => ap.tint.set(o.a, o.broken ? T_BROKEN : T_JAM));
+    const head = jam.chain[jam.chain.length - 1], parked = jam.cause === 'stau' && jam.n <= 2 && head.a && head.a.wait > 20 && nextJunctionS() - jam.Send > 15;
+    const pass = jam.cause === 'panne' || parked ? passPlan(jam.chain, false) : { ok: false, why: 'Stau' };
+    brain.passWhy = pass.ok ? '' : pass.why;
+    if (pass.ok && pass.o > 0) {
+      brain.ov = { targets: jam.chain.slice(), boost: false, Sto: pass.Sto, Sfrom: pass.Sfrom };
+      setPlan(pass.o, clamp(pass.Sfrom - S0 - 2, 7, 20), pass.Sto, 15);
+      toast(pass.crossing ? 'Überhole ' + (jam.cause === 'panne' ? 'Pannenfahrzeug' : 'stehendes Fahrzeug') : 'Weiche aus');
+    } else {
+      if (pass.threat) ap.tint.set(pass.threat.a, T_THREAT);
+      if (v < 1 && leadGap < 16) brain.waitJam += dt;
+      if (v < 1 && leadGap < 16 && (jam.cause === 'panne' || (jam.n >= 4 && brain.waitJam > 10))) propose(jam, pass);
+    }
+  } else if (jam && v < 1 && leadGap < 16) {
+    jam.chain.forEach(o => ap.tint.set(o.a, T_JAM));
+    brain.waitJam += dt;
+    if (jam.n >= 4 && brain.waitJam > (jam.cause === 'ampel' ? 14 : 9)) propose(jam, { ok: false, why: jam.cause });
+  } else { brain.waitJam = 0; if (!brain.ov && Math.abs(brain.plan.o1) > 0.01 && S0 > brain.plan.Sr + brain.plan.Lr) brain.plan = { o0: 0, o1: 0, Ss: 0, Lt: 10, Sr: 1e9, Lr: 14 }; }
+  if (brain.prop && (!jam || v > 2)) { closeProposal(); brain.prop = null; }
+  // Pannenfahrzeug weiter vorne hinter einer Kreuzung: vorausschauend umleiten
+  if (brain.rerouteCool <= 0 && !brain.ov) {
+    const far = brain.obs.find(o => o.kind === 'car' && o.broken && Math.abs(o.l) < 2 && o.S > S0 + 25);
+    if (far && nextJunctionS() < far.S - far.hl - 5 && ap.dest) {
+      brain.rerouteCool = 15;
+      const pen = new Map(); pen.set(far.a.lane.id, 600);
+      const r2 = astar(PL.route[PL.ri], ap.dest.id, 120000, pen);
+      if (r2 && !r2.includes(far.a.lane.id)) { setRoute(r2, PL.lane, PL.s); toast('Neue Route – Pannenfahrzeug wird umfahren'); }
+    }
+  }
+  if (lead && !ap.tint.has(lead.a || lead.p)) ap.tint.set(lead.a || lead.p, lead.kind === 'ped' ? T_PED : T_LEAD);
+  if (pedNear && !ap.tint.has(pedNear.p)) ap.tint.set(pedNear.p, T_PED);
+  ap.accel = clamp(acc, -8, PL.amax + (ap.boost ? 8 : 0));
+
+  // ---- Querregelung: Pure Pursuit auf Route + Versatzprofil ----
+  const Ld = clamp(4.5 + 0.38 * v, 5, 20), tp = routeAt(S0 + Ld, {}), oT = offAt(S0 + Ld);
+  const tx = tp.x + tp.hz * oT, tz = tp.z - tp.hx * oT;
+  const rx = tx - car.pos.x, rz = tz - car.pos.z, fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
+  const alpha = Math.atan2(rx * fz - rz * fx, Math.max(0.1, rx * fx + rz * fz)), delta = Math.atan(2 * WB * Math.sin(alpha) / Ld);
+  ap.steer = clamp(delta / (0.6 / (1 + v * v / 700)), -1, 1);
+
+  // ---- Status (was der Autopilot gerade denkt) ----
+  const kmh = x => Math.round(x * 3.6);
+  if (brain.ov) say('ov', ap.boost ? 'Boost-Überholen mit Kaltgas' : (offAt(S0) > LW / 2 ? 'Überhole über die Gegenfahrbahn' : 'Weiche seitlich aus'));
+  else if (brain.prop) say('prop', 'Wartet auf deine Entscheidung');
+  else if (jam && v < 1.5 && leadGap < 20) say('jam', `${CAUSE_TXT[jam.cause]}: ${jam.n} Fahrzeug${jam.n === 1 ? '' : 'e'}` + (jam.cause === 'panne' && brain.passWhy ? ' – Ausweichen nicht möglich (' + brain.passWhy + ')' : ''));
+  else {
+    const W = { sigR: 'Halte an roter Ampel', sigY: 'Ampel gelb – halte an', left: 'Linksabbiegen: lasse Gegenverkehr durch', yield: PL.lane.sn === 'yield' ? 'Vorrang geben' : 'Rechts vor Links – warte', stop: 'Stopp-Schild – halte an', box: 'Kreuzung blockiert – fahre nicht ein', xing: 'Fußgänger am Zebrastreifen', msig: 'Fußgängerampel rot', end: 'Ziel erreicht', ped: 'Bremse für Fußgänger', oncoming: 'Gegenverkehr im Fahrweg', cross: 'Querverkehr – bremse', lead: lead ? (lead.vs > 1 ? `Folge Fahrzeug · ${Math.max(5, Math.round(lead.vs * 3.6 / 5) * 5)} km/h` : 'Fahrzeug vor mir hält') : 'Folge Fahrzeug' };
+    if (W[why]) say(why, W[why]);
+    else if (pedNear) say('pednear', 'Fußgänger nahe Fahrbahn – fahre langsamer');
+    else if (r.v0 < PL.lane.spd - 2) say('curve', `Abbiegen/Kurve – verlangsame auf ${Math.max(10, Math.round(r.v0 * 3.6 / 5) * 5)} km/h`);
+    else say('cruise', `Freie Fahrt · ${kmh(PL.lane.spd)} km/h`);
+  }
+  // Ziel erreicht?
+  const last = PL.ri >= PL.route.length - 1, rem = LANES[PL.route[PL.route.length - 1]].L - PL.s;
+  if (last && ((rem < 16 && v < 0.8) || rem < 2)) { ap.arrived = true; stopAP('Ziel erreicht'); car.gear = 'P'; car.vel.set(0, 0, 0); ap.dest = null; }
+}
+
+// ================= Geplanter Fahrweg (blaues Band, folgt dem Versatzprofil) =================
+const hopLine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(80 * 3), 3)), new THREE.LineDashedMaterial({ color: lin(0x6fd3ff), dashSize: 1.2, gapSize: 0.8, toneMapped: false, transparent: true, opacity: 0.95 }));
+hopLine.frustumCulled = false; hopLine.renderOrder = 31; scene.add(hopLine);
+function drawHopLine(h, S0) {
+  const P = hopLine.geometry.attributes.position, o = {}, n = 80;
+  for (let i = 0; i < n; i++) {
+    const u = i / (n - 1), S = S0 + (h.Sl - S0) * u; routeAt(S, o);
+    const y = 0.4 + (h.hc - 0.4) * Math.min(1, Math.sin(Math.min(1, u * 3.2) * Math.PI / 2), Math.sin(Math.min(1, (1 - u) * 3.6) * Math.PI / 2));
+    P.setXYZ(i, o.x, y, o.z);
+  }
+  P.needsUpdate = true; hopLine.computeLineDistances(); hopLine.visible = true;
+}
+function updatePath(t) {
+  hopLine.visible = false;
+  pathMesh.visible = ap.on && PL.route.length > 0 && !!PL.rcum && (!!PL.lane || !!brain.hop);
+  if (brain.hop) { drawHopLine(brain.hop, brain.hop.S); pathMesh.visible = false; return; }
+  if (brain.prop) { const hp = brain.prop.opts.find(o => o.kind === 'hop'); if (hp) drawHopLine(hp.data, egoS()); }
+  if (!pathMesh.visible) return;
+  const S0 = egoS(), total = Math.min(160, routeTotal() - S0), step = Math.max(0.5, total / (PATH_N - 1)), o = {};
+  for (let i = 0; i < PATH_N; i++) {
+    const d = 2.3 + i * step, S = Math.min(S0 + d, routeTotal() - 0.01); routeAt(S, o);
+    const off = offAt(S), w = 0.85;
+    let x = o.x + o.hz * off, z = o.z - o.hx * off;
+    if (i < 6) { const k = i / 6, cx = car.pos.x + Math.sin(car.yaw) * d, cz = car.pos.z + Math.cos(car.yaw) * d; x = cx + (x - cx) * k; z = cz + (z - cz) * k; }
+    pathPos.set([x - o.hz * w, 0.06, z + o.hx * w, x + o.hz * w, 0.06, z - o.hx * w], i * 6);
+    pathUV.set([0, i * step, 1, i * step], i * 4);
+  }
+  pathMat.uniforms.t.value = t; pathMat.uniforms.n.value = Math.max(1, total);
+  pathGeo.attributes.position.needsUpdate = true; pathGeo.attributes.uv.needsUpdate = true;
+}
+
+// ================= Szenarien (Panne / Stau vor mir) =================
+function aheadSpot(dist) { // (Fahrstreifen, s) etwa „dist“ m voraus – entlang der Route oder geradeaus
+  if (ap.on && PL.rcum) { let S = egoS() + dist, k = routeIdx(S); while (k < PL.route.length - 1 && LANES[PL.route[k]].c) { k++; S = PL.rcum[k] + 4; } const l = LANES[PL.route[k]]; return { l, s: clamp(S - PL.rcum[k], 3, l.L - 3) }; }
+  const n = nearestLane(car.pos.x, car.pos.z, Math.sin(car.yaw), Math.cos(car.yaw), 6, false); if (!n) return null;
+  let l = n.l, s = n.s + dist;
+  while (s > l.L - 3 && l.nx.length) { s -= l.L; let nx = l.nx.map(i => LANES[i]); const st = nx.find(c => c.turn === 'S') || nx[0]; l = LANES[st.nx[0]] || st; s -= st.L; if (s < 3) s = 3; }
+  return l.c ? null : { l, s: clamp(s, 3, l.L - 3) };
+}
+function breakDown(a, quiet) { a.broken = 70 + Math.random() * 60; a.latT = 0.35 + Math.random() * 0.55; a.v = Math.min(a.v, 4); if (!quiet) toast('Panne: ' + VCLASS[a.cls].name + ' liegengeblieben'); }
+function scenarioBreakdown(withJam) {
+  if (!CITY) return;
+  let spot = null;
+  if (PL.lane && !PL.lane.c) { const rem = PL.lane.L - PL.s; if (rem > (withJam ? 65 : 45)) spot = { l: PL.lane, s: PL.s + Math.min(withJam ? 95 : 60, rem * (withJam ? 0.8 : 0.6)) }; }
+  if (!spot) spot = aheadSpot(withJam ? 110 : 70);
+  if (!spot) { toast('Keine Straße voraus'); return; }
+  const a = makeAgent(spot.l, spot.s, 'suv'); if (!a) { toast('Kein Platz für das Szenario'); return; }
+  a.v = 0; breakDown(a, true);
+  if (withJam) { let s = spot.s, minS = spot.l === PL.lane ? PL.s + 14 : 3; for (let i = 0; i < 6; i++) { s -= VCLASS.sedan.L + 2.6 + Math.random() * 1.5; if (s < minS) break; const b = makeAgent(spot.l, s, pickClass() === 'bus' ? 'van' : pickClass()); if (b) b.v = 0; } }
+  toast(withJam ? 'Szenario: Stau hinter Pannenfahrzeug' : 'Szenario: Panne voraus');
 }
 
 // ================= Visuals des eigenen Autos =================
@@ -5812,6 +6241,8 @@ function hud() {
   if (hudGear !== car.gear) { hudGear = car.gear; document.querySelectorAll('#gears span').forEach(s => s.classList.toggle('on', s.dataset.g === car.gear)); }
   $('apIco').classList.toggle('on', ap.on); $('apBtn').classList.toggle('on', ap.on);
   $('apTxt').textContent = ap.on ? 'Autopilot aktiv' : 'Selbst fahren';
+  const mind = $('apMind'); mind.hidden = !ap.on || !brain.status;
+  if (ap.on) { $('apMindTxt').textContent = brain.status; mind.className = 'hud card' + (brain.statusK === 'hop' || brain.statusK === 'ov' && ap.boost ? ' hop' : (brain.statusK === 'jam' || brain.statusK === 'prop' || brain.statusK === 'oncoming' || brain.statusK === 'cross' ? ' warn' : '')); }
   const pct = car.bat / BAT_KWH * 100; $('batTxt').textContent = Math.round(pct) + ' %'; $('batFill').style.width = pct + '%'; $('batFill').classList.toggle('low', pct < 15);
   $('street').textContent = lastName || '';
   if (T.tank) { $('gasRow').style.display = ''; $('gasTxt').textContent = Math.round(car.gas) + ' L'; const gb = $('gasBar'); gb.style.width = (car.gas / T.tank * 100) + '%'; gb.classList.toggle('lock', car.lockout); }
@@ -5942,6 +6373,12 @@ function toggle(code) {
 }
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+  if (brain.prop && !e.repeat) {
+    const m = /^(Digit|Numpad)([1-9])$/.exec(e.code);
+    if (m) { e.preventDefault(); acceptOption(+m[2] - 1); return; }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); acceptOption(0); return; }
+    if (e.code === 'Escape') { e.preventDefault(); dismissProposal(); return; }
+  }
   if (DRIVE_KEYS.includes(e.code)) { e.preventDefault(); if (ap.on && !e.repeat && TAKEOVER.includes(e.code)) stopAP('Übernahme – Autopilot aus'); }
   if (!e.repeat) toggle(e.code);
   keys[e.code] = true;
@@ -5975,6 +6412,23 @@ const endPtr = e => {
 cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 function zoomBy(f) { if (camMode === 1) topV.h = clamp(topV.h * f, 25, 600); else { camMode = 2; free.dist = clamp(free.dist * f, 6, 160); } }
 cv.addEventListener('wheel', e => { e.preventDefault(); if (camMode === 0) { camMode = 2; free.yaw = camYaw + Math.PI; } zoomBy(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+
+// ================= Autopilot-Vorschläge =================
+function openProposal(pr) {
+  $('propTitle').textContent = pr.title; $('propDesc').textContent = pr.desc;
+  const host = $('propOpts'); host.innerHTML = '';
+  pr.opts.forEach((o, i) => {
+    const b = document.createElement('button'); b.className = 'propOpt' + (o.kind === 'hop' || o.kind === 'boost' ? ' kalt' : '');
+    b.innerHTML = `<kbd>${i + 1}</kbd><div><b></b><span></span></div>`; b.querySelector('b').textContent = o.label; b.querySelector('span').textContent = o.sub || '';
+    if (o.disabled) { b.disabled = true; b.style.opacity = .5; b.style.cursor = 'default'; }
+    b.addEventListener('click', () => acceptOption(i)); host.appendChild(b);
+  });
+  $('apProp').hidden = false;
+}
+function closeProposal() { $('apProp').hidden = true; }
+$('scBreak').addEventListener('click', () => { scenarioBreakdown(false); toggleMenu(); });
+$('scJam').addEventListener('click', () => { scenarioBreakdown(true); toggleMenu(); });
+$('scRandom').addEventListener('change', e => { sim.randomBreak = e.target.checked; });
 
 // ================= UI / Menü =================
 let toastT = 0;
@@ -6127,7 +6581,7 @@ function dbg() {
     acc: r.acc, v0: r.v0, leader: r.leader ? { s: r.leader.s, v: r.leader.v, pl: !!r.leader.a.isPlayer, st: r.leader.a.stuck, wait: r.leader.a.waitJ } : null, probe: pr, apAcc: ap.accel, apSteer: ap.steer, wait: PL.wait,
     yield: nx && nx.c ? mustYield(PL, l, nx, false) : null, conf: nx && nx.c ? nx.cf.map(c => ({ c, occ: LANES[c].occ.length, com: LANES[c].com.length, inOcc: LANES[LANES[c].inL].occ.map(o => [Math.round(LANES[LANES[c].inL].L - o.s), +o.v.toFixed(1)]) })) : null };
 }
-window.FSD = { info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), dbg, simTick, setClassModel, sim, car, ap, PL, LANES, setDestination, startAP, stopAP, get city() { return CITY; }, toast, setCam(m) { camMode = m; camSnap = true; } };
+window.FSD = { bh: () => ({ bh: bodyHeight(car.pos.x, car.pos.z, car.yaw), h: heightAt(car.pos.x, car.pos.z), y: car.pos.y, gear: car.gear, accel: ap.accel, steer: ap.steer, mode: car.mode, crash: car.crashT }), forceProposal: () => { brain.propCool = 0; brain.propKey = ''; return brain.jam && propose(brain.jam, { ok: false, why: 'Gegenverkehr' }); }, hopNow: () => { const h = brain.jam && hopPlan(brain.jam); if (h && h.ok) startHop(h); return h; }, dbgPass: () => brain.jam && ({ jam: { n: brain.jam.n, cause: brain.jam.cause, Ss: brain.jam.Sstart - brain.S0, Se: brain.jam.Send - brain.S0, chain: brain.jam.chain.map(o => [+(o.S - brain.S0).toFixed(1), +o.l.toFixed(2), +o.hw.toFixed(2)]) }, room: roadRoom(), nj: nextJunctionS() - brain.S0, pass: (({ threat, ...r }) => r)(passPlan(brain.jam.chain, false)), hop: hopPlan(brain.jam) }), brain, scenarioBreakdown, acceptOption, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), dbg, simTick, setClassModel, sim, car, ap, PL, LANES, setDestination, startAP, stopAP, get city() { return CITY; }, toast, setCam(m) { camMode = m; camSnap = true; } };
 boot();
 
 })();

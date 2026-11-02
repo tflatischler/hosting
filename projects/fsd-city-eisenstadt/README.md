@@ -4,6 +4,16 @@ Single-File-Browserspiel (`index.html`, komplett eigenständig: three.js, GLTFLo
 im Look der Tesla-Cockpit-Umgebungsansicht, mit KI-Verkehr, Fußgängern, Autopilot und dem Roadster samt
 Suction-Fans und Kaltgas-Düsen (Fahrlogik aus „Roadster Thruster: Starbase“).
 
+## Autopilot
+
+Entscheidet jeden Frame neu aus der aktuellen Lage: Objekte werden ins Routen-Koordinatensystem projiziert,
+Vordermann, Stau (mit Ursache: Panne, Ampel, Kreuzung), Gegenverkehr und Fußgänger erkannt. Ein lokaler Planer
+legt ein Querversatz-Profil fest (ausweichen, über die Gegenfahrbahn überholen, wieder einscheren), die
+Längsregelung folgt den Hindernissen im geplanten Korridor. Pannen hinter der nächsten Kreuzung werden per
+Umleitung umfahren. Wo das ohne Kaltgas nicht geht, schlägt er Kaltgas-Manöver vor (Sprung über den Stau,
+Boost-Überholen) – mit Flugbahn, Kaltgas-Bedarf und Begründung – und führt sie erst nach Bestätigung aus.
+Szenarien („Panne vor mir“, „Stau hinter Panne“) im Menü.
+
 ## Stadtdaten
 
 Die Seite holt sich die Daten in dieser Reihenfolge:
