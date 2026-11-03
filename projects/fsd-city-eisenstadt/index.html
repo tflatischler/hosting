@@ -70,6 +70,15 @@ canvas#gl{position:fixed;inset:0;display:block}
 .propOpt kbd{flex:none}
 .propOpt b{display:block;font-size:14.5px;font-weight:600}
 .propOpt span{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.tblWrap{overflow-x:auto}
+.mlT{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+.mlT td{padding:4px 6px 4px 0;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap;font-size:12px}
+.mlT td:last-child{padding-right:0;text-align:right}
+.mlT td:first-child{color:var(--fg)}
+.mlT th{font-weight:500;font-size:11px;color:var(--dim);text-align:left;padding:0 6px 4px 0;letter-spacing:.4px}
+.mlT th:last-child{text-align:right;padding-right:0}
+.mlok{color:#7fd6a0;font-weight:600}.mlwait{color:#ffb347}
+.mlChips{margin-top:8px}
 /* Buttons + Minimap rechts */
 #topRight{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));display:flex;gap:6px;z-index:3}
 .btn{font:inherit;font-size:14px;font-weight:500;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 13px;cursor:pointer;display:flex;align-items:center;gap:6px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -182,6 +191,10 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
   <h2>Verkehr</h2>
   <label class="rng">Fahrzeuge <input type="range" id="nV" min="0" max="200" step="10" value="100"><b id="nVV">100</b></label>
   <label class="rng">Fußgänger <input type="range" id="nP" min="0" max="90" step="5" value="50"><b id="nPV">50</b></label>
+  <h2>KI-Modelle (lernen live)</h2>
+  <div class="tblWrap"><table class="mlT"><thead><tr><th>Modell</th><th>Beispiele</th><th>Treffer</th><th>Status</th></tr></thead><tbody id="mlStats"></tbody></table></div>
+  <div class="chips mlChips"><label class="chip"><input type="checkbox" id="mlOn" checked> im Autopilot nutzen</label><label class="chip"><input type="checkbox" id="mlShow" checked> Vorhersagen zeigen</label><label class="chip"><input type="checkbox" id="mlStyle"> meinen Fahrstil übernehmen</label><button class="chip" id="mlReset">zurücksetzen</button></div>
+  <div class="note">Neuronale Netze, direkt im Browser trainiert: Sie sagen aus Blinker, Tempo, Verzögerung und Spur voraus, wohin andere Autos abbiegen, und ob Fußgänger am Zebrastreifen gleich queren. Der Autopilot nutzt sie statt internem Simulationswissen, sobald die laufend gemessene Trefferquote reicht: Abbiegen ≥ 80 % (gemessen in den letzten 28 m vor der Kreuzung, wo der Autopilot entscheidet), Fußgänger ≥ 75 % balanciert (Queren und Nicht-Queren gleich gewichtet). Vorher fährt er nach Regeln. Beim Selbstfahren lernt ein drittes Modell dein Wunschtempo und deinen Abstand. Gelerntes bleibt in diesem Browser gespeichert.</div>
   <h2>Szenarien</h2>
   <div class="chips"><button class="chip" id="scBreak">Panne vor mir</button><button class="chip" id="scJam">Stau hinter Panne</button><label class="chip"><input type="checkbox" id="scRandom" checked> zufällige Pannen</label></div>
   <div class="note">Der Autopilot erkennt Panne und Stau selbst: Er weicht aus oder überholt, wenn die Gegenfahrbahn frei ist. Geht das nicht, schlägt er Kaltgas-Manöver vor (Sprung über den Stau, Boost-Überholen) und führt sie erst nach deiner Bestätigung aus.</div>
@@ -5053,8 +5066,14 @@ function mustYield(a, inL, conn, signalGreen) {
     for (const o of in2.occ) {
       const oa = o.a; if (oa === a) continue;
       const d2 = in2.L - o.s; if (d2 > 28 || d2 < -1) continue;
-      const theirConn = oa.isPlayer ? null : nextLane(oa);
-      if (!oa.isPlayer && theirConn && theirConn.id !== cid) continue;
+      if (a.isPlayer && !oa.isPlayer && ML.on && ML.trusted(ML.intent)) {
+        // Autopilot: Absicht des anderen aus beobachtbarem Verhalten vorhersagen (statt seine Route zu kennen)
+        const pr = predictIntent(o, in2), p = pr[TURN_I[c2.turn] ?? 1];
+        if (p < 0.2) { ML.note = `Vorhersage: Fahrzeug fährt ${TURN_NAME[pr.indexOf(Math.max(...pr))]} (${Math.round(Math.max(...pr) * 100)} %) – kein Konflikt`; ML.noteT = sim.t; continue; }
+      } else {
+        const theirConn = oa.isPlayer ? null : nextLane(oa);
+        if (!oa.isPlayer && theirConn && theirConn.id !== cid) continue;
+      }
       if (oa.isPlayer && o.v < 0.5) continue;
       if (!oa.isPlayer && oa.v < 0.3 && d2 > 6) continue;
       // Ankunftszeit des anderen
@@ -5076,11 +5095,18 @@ function mustYield(a, inL, conn, signalGreen) {
   }
   return false;
 }
-function xingBusy(ci, a) { const x = XING[ci]; return x.nc > 0 || (x.n > 0 && (a.wait || 0) < 7); }
+function xingBusy(ci, a) {
+  if (a.isPlayer && ML.on && ML.trusted(ML.ped)) { // Autopilot: Querungsabsicht vorhersagen
+    const r = pedCrossProb(ci);
+    if (r.p > 0.35) { ML.note = `Vorhersage: Fußgänger quert (${Math.round(r.p * 100)} %)`; ML.noteT = sim.t; if (r.who) ap.tint.set(r.who, T_PED); return (a.wait || 0) < 9 || r.p > 0.95; }
+    return false;
+  }
+  const x = XING[ci]; return x.nc > 0 || (x.n > 0 && (a.wait || 0) < 7);
+}
 
 // Hindernisse vor dem Fahrzeug suchen und IDM-Beschleunigung berechnen
-function idmAcc(v, v0, gap, dv, amax) {
-  const sStar = IDM.s0 + Math.max(0, v * IDM.T + v * dv / (2 * Math.sqrt(amax * IDM.b)));
+function idmAcc(v, v0, gap, dv, amax, T = IDM.T) {
+  const sStar = IDM.s0 + Math.max(0, v * (T || IDM.T) + v * dv / (2 * Math.sqrt(amax * IDM.b)));
   return amax * (1 - Math.pow(v / Math.max(0.1, v0), 4) - (sStar / Math.max(0.1, gap)) ** 2);
 }
 // gemeinsame Längsregelung für KI und Autopilot. a: Agent (lane, s, v, route, ri, L), Rückgabe: Beschleunigung
@@ -5088,7 +5114,7 @@ function planAccel(a, dt, opts = {}) {
   const v = a.v, amax = a.amax || 2.2, look = Math.max(60, v * v / (2 * IDM.b) + 35);
   let lane = a.lane, v0 = lane.spd * (a.f || 1), acc = 1e9, D = -a.s, leader = null;
   let why = '', whyD = 0;
-  const lim = (gap, vl, w = 'lead') => { const x = idmAcc(v, v0, gap, v - vl, amax); if (x < acc) { acc = x; why = w; whyD = gap; } };
+  const lim = (gap, vl, w = 'lead') => { const x = idmAcc(v, v0, gap, v - vl, amax, a.T); if (x < acc) { acc = x; why = w; whyD = gap; } };
   let blinkTurn = 0;
   for (let k = a.ri; k < a.route.length && D < look; k++) {
     const l = LANES[a.route[k]], startS = k === a.ri ? a.s : 0;
@@ -5216,6 +5242,7 @@ function updateAgents(dt, player) {
       a.s -= a.lane.L;
       if (a.ri + 1 >= a.route.length && !planRoute(a)) { remove.push(a); a.s = a.lane.L; break; }
       a.ri++; a.lane = LANES[a.route[a.ri]]; a.stopDone = false; a.wait = 0;
+      mlOnLane(a, a.lane);
       if (a.ri > 40) { a.route = a.route.slice(a.ri); a.ri = 0; }
       if (a.route.length - a.ri < 4) planRoute(a);
     }
@@ -5787,6 +5814,222 @@ function nextManeuver() {
   return { turn: 'Z', d, name: LANES[PL.route[PL.route.length - 1]].name || 'Ziel' };
 }
 
+// ================= Maschinelles Lernen (online im Browser) =================
+// Drei Modelle lernen fortlaufend aus dem laufenden Verkehr bzw. deinem Fahren:
+//  1. Abbiegeabsicht anderer Fahrzeuge (MLP, Softmax L/S/R) aus Beobachtbarem: Blinker, Tempo, Verzögerung, Spur, Abstand.
+//  2. Querungsabsicht von Fußgängern am Zebrastreifen (MLP, Sigmoid) aus Position, Tempo, Stillstandsdauer.
+//  3. Fahrstil (MLP-Regression): dein Wunschtempo relativ zum Limit je Situation + dein Zeitabstand.
+// Der Autopilot nutzt 1 und 2 statt internem Simulationswissen, sobald ein Modell nachweislich gut genug ist.
+
+class MLP {
+  constructor(sizes, kind, lr = 0.01) {
+    this.sizes = sizes; this.kind = kind; this.lr = lr; this.t = 0;
+    this.W = []; this.b = []; this.mW = []; this.vW = []; this.mb = []; this.vb = [];
+    for (let l = 0; l < sizes.length - 1; l++) {
+      const n = sizes[l] * sizes[l + 1], s = Math.sqrt(2 / sizes[l]), W = new Float32Array(n);
+      for (let i = 0; i < n; i++) W[i] = (Math.random() * 2 - 1) * s;
+      this.W.push(W); this.b.push(new Float32Array(sizes[l + 1]));
+      this.mW.push(new Float32Array(n)); this.vW.push(new Float32Array(n)); this.mb.push(new Float32Array(sizes[l + 1])); this.vb.push(new Float32Array(sizes[l + 1]));
+    }
+  }
+  initBias(v) { this.b[this.b.length - 1].fill(v); return this; }
+  forward(x, mask) {
+    const A = [Float32Array.from(x)], L = this.W.length;
+    for (let l = 0; l < L; l++) {
+      const ni = this.sizes[l], no = this.sizes[l + 1], W = this.W[l], b = this.b[l], a = A[l], z = new Float32Array(no);
+      for (let j = 0; j < no; j++) { let s = b[j]; for (let i = 0; i < ni; i++) s += W[j * ni + i] * a[i]; z[j] = s; }
+      if (l < L - 1) for (let j = 0; j < no; j++) z[j] = Math.tanh(z[j]);
+      else if (this.kind === 'softmax') {
+        let m = -1e9; for (let j = 0; j < no; j++) { if (mask && !mask[j]) z[j] = -1e9; m = Math.max(m, z[j]); }
+        let s = 0; for (let j = 0; j < no; j++) { z[j] = Math.exp(z[j] - m); s += z[j]; } for (let j = 0; j < no; j++) z[j] /= s;
+      } else if (this.kind === 'sigmoid') z[0] = 1 / (1 + Math.exp(-z[0]));
+      A.push(z);
+    }
+    return A;
+  }
+  predict(x, mask) { const A = this.forward(x, mask); return A[A.length - 1]; }
+  train(batch) { // batch: [{x, y (Array), mask?}] – Kreuzentropie bzw. MSE, Adam
+    const L = this.W.length, gW = this.W.map(w => new Float32Array(w.length)), gb = this.b.map(b => new Float32Array(b.length));
+    let loss = 0;
+    for (const s of batch) {
+      const A = this.forward(s.x, s.mask), out = A[L];
+      let d = new Float32Array(out.length);
+      for (let j = 0; j < out.length; j++) { d[j] = out[j] - s.y[j]; loss += this.kind === 'linear' ? d[j] * d[j] : -s.y[j] * Math.log(Math.max(1e-7, this.kind === 'sigmoid' ? out[j] : out[j])) - (this.kind === 'sigmoid' ? (1 - s.y[j]) * Math.log(Math.max(1e-7, 1 - out[j])) : 0); }
+      for (let l = L - 1; l >= 0; l--) {
+        const ni = this.sizes[l], no = this.sizes[l + 1], a = A[l], W = this.W[l];
+        for (let j = 0; j < no; j++) { gb[l][j] += d[j]; for (let i = 0; i < ni; i++) gW[l][j * ni + i] += d[j] * a[i]; }
+        if (l > 0) { const dn = new Float32Array(ni); for (let i = 0; i < ni; i++) { let s2 = 0; for (let j = 0; j < no; j++) s2 += W[j * ni + i] * d[j]; dn[i] = s2 * (1 - a[i] * a[i]); } d = dn; }
+      }
+    }
+    this.t++; const b1 = 0.9, b2 = 0.999, n = batch.length, c1 = 1 - Math.pow(b1, this.t), c2 = 1 - Math.pow(b2, this.t);
+    const upd = (P, G, M, V) => { for (let i = 0; i < P.length; i++) { const g = G[i] / n; M[i] = b1 * M[i] + (1 - b1) * g; V[i] = b2 * V[i] + (1 - b2) * g * g; P[i] -= this.lr * (M[i] / c1) / (Math.sqrt(V[i] / c2) + 1e-8); } };
+    for (let l = 0; l < L; l++) { upd(this.W[l], gW[l], this.mW[l], this.vW[l]); upd(this.b[l], gb[l], this.mb[l], this.vb[l]); }
+    return loss / n;
+  }
+  toJSON() { return { sizes: this.sizes, kind: this.kind, t: this.t, W: this.W.map(a => Array.from(a, v => +v.toFixed(5))), b: this.b.map(a => Array.from(a, v => +v.toFixed(5))) }; }
+  load(o) { if (!o || JSON.stringify(o.sizes) !== JSON.stringify(this.sizes)) return false; this.W = o.W.map(a => Float32Array.from(a)); this.b = o.b.map(a => Float32Array.from(a)); this.t = 0; return true; }
+}
+class Learner { // Modell + Replay-Puffer + ehrliche Online-Genauigkeit (vor dem Training gemessen)
+  constructor(name, net, cap = 5000) { this.name = name; this.net = net; this.buf = []; this.cap = cap; this.n = 0; this.hits = []; this.loss = 0; this.err = []; }
+  add(s) {
+    const p = this.net.predict(s.x, s.mask);
+    if (this.net.kind === 'linear') { this.err.push(Math.abs(p[0] - s.y[0])); if (this.err.length > 400) this.err.shift(); }
+    else if (this.net.kind === 'softmax') { if (s.eval !== false) { this.hits.push(p.indexOf(Math.max(...p)) === s.y.indexOf(1) ? 1 : 0); if (this.hits.length > 400) this.hits.shift(); } }
+    else { const H = s.y[0] ? (this.pos = this.pos || []) : (this.neg = this.neg || []); H.push((p[0] > 0.5 ? 1 : 0) === s.y[0] ? 1 : 0); if (H.length > 300) H.shift(); this.hits = [1]; }
+    const B = this.net.kind === 'sigmoid' ? (s.y[0] ? (this.bp = this.bp || []) : this.buf) : this.buf, cap = B === this.buf ? this.cap : this.cap / 2;
+    if (B.length < cap) B.push(s); else B[(Math.random() * cap) | 0] = s;
+    this.n++;
+  }
+  step(k = 32) {
+    if (this.buf.length < 24) return; const b = [], bp = this.bp || [];
+    for (let i = 0; i < k; i++) { const src = this.net.kind === 'sigmoid' && bp.length >= 8 && i % 2 ? bp : this.buf; b.push(src[(Math.random() * src.length) | 0]); } // Klassen ausbalanciert
+    this.loss = this.loss * 0.95 + this.net.train(b) * 0.05;
+  }
+  get acc() {
+    const m = A => A && A.length ? A.reduce((a, b) => a + b, 0) / A.length : 0;
+    if (this.net.kind === 'sigmoid') return (this.pos && this.pos.length >= 15 && this.neg && this.neg.length >= 15) ? (m(this.pos) + m(this.neg)) / 2 : 0; // balanciert
+    return m(this.hits);
+  }
+  get mae() { return this.err.length ? this.err.reduce((a, b) => a + b, 0) / this.err.length : 0; }
+}
+const ML = {
+  on: true, show: true, style: false,
+  intent: new Learner('Abbiegeabsicht', new MLP([10, 16, 12, 3], 'softmax', 0.006)),
+  ped: new Learner('Querungsabsicht', new MLP([6, 12, 1], 'sigmoid', 0.008)),
+  speed: new Learner('Wunschtempo', new MLP([5, 10, 1], 'linear', 0.006).initBias(1)),
+  headT: 1.3, headN: 0, speedMean: 1, pend: new Map(), pedPend: [], tAcc: 0, saveT: 0, note: '', noteT: 0
+};
+const TURN_I = { L: 0, U: 0, S: 1, R: 2 }, TURN_NAME = ['links', 'geradeaus', 'rechts'];
+ML.trusted = l => l.n >= (l === ML.intent ? 250 : 150) && l.acc >= (l === ML.intent ? 0.8 : 0.75);
+// beobachtbare Merkmale eines Fahrzeugs vor einer Kreuzung
+function intentFeatures(o, inL) {
+  const a = o.a, d = inL.L - o.s, opts = [0, 0, 0];
+  for (const c of inL.nx) { const t = LANES[c].turn; opts[TURN_I[t] ?? 1] = 1; }
+  const E = EDGES[inL.e] || {}, n = inL.d > 0 ? (E.lf || 1) : (E.lb || 1), k = inL.k || 0;
+  const bl = a.isPlayer ? 0 : (a.blink || 0);
+  return { eval: d < 28, x: [bl > 0 ? 1 : 0, bl < 0 ? 1 : 0, Math.min(1.5, o.v / 14), clamp((a.acc || 0) / 3, -2, 1), Math.min(1.2, d / 50), n > 1 ? k / (n - 1) : 0.5, (n - 1) / 2, opts[0], opts[1], opts[2]], mask: opts };
+}
+function predictIntent(o, inL) { const f = intentFeatures(o, inL); return ML.intent.net.predict(f.x, f.mask); }
+// Fußgänger in Zebrastreifen-Nähe
+function pedFeatures(p, ci) {
+  let dz = 9, toward = 0;
+  for (const [c, zs] of p.w.z) if (c === ci) { dz = (zs - p.s) * p.dir; toward = dz > 0 ? 1 : 0; }
+  const moving = p.st === 'walk' || p.st === 'corner' ? p.sp : 0;
+  return [clamp(dz / 10, -1.5, 1.5), toward, moving / 1.5, Math.min(1, (p.still || 0) / 4), Math.abs(dz) < 1.2 ? 1 : 0, p.st === 'cross' ? 1 : 0];
+}
+// Querungswahrscheinlichkeit am Übergang ci (für den Autopiloten)
+function pedCrossProb(ci) {
+  let best = 0, who = null;
+  for (const p of sim.peds) {
+    if (p.st === 'cross' && p.ci === ci) return { p: 1, who: p }; // sichtbar auf der Fahrbahn
+    if (!p.w || !p.w.z.some(z => z[0] === ci)) continue;
+    const x = XING[ci]; if (Math.hypot(p.x - x.x, p.z - x.z) > 16) continue;
+    const pr = ML.ped.net.predict(pedFeatures(p, ci))[0]; if (pr > best) { best = pr; who = p; }
+  }
+  return { p: best, who };
+}
+// --------- Datensammlung + Training (läuft jeden Frame) ---------
+function mlUpdate(dt) {
+  ML.tAcc += dt; if (ML.tAcc < 0.35) return; const step = ML.tAcc; ML.tAcc = 0;
+  // 1) Abbiegeabsicht: Stichproben vor Kreuzungen, Label beim Einfahren in die Abbiegekurve
+  for (const a of sim.agents) {
+    const l = a.lane; if (l.c) continue;
+    const nx = a.route[a.ri + 1] != null ? LANES[a.route[a.ri + 1]] : null;
+    if (!nx || !nx.c || NODES[nx.nd].deg < 3 || l.nx.length < 2) continue;
+    const d = l.L - a.s; if (d > 55 || d < 1) continue;
+    let P = ML.pend.get(a.id); if (!P || P.lane !== l.id) { P = { lane: l.id, s: [] }; ML.pend.set(a.id, P); }
+    if (P.s.length < 10) P.s.push(intentFeatures({ a, s: a.s, v: a.v }, l));
+  }
+  // 2) Fußgänger: Stichprobe jetzt, Label nach 2,5 s (quert er dann?)
+  for (const p of sim.peds) {
+    p.still = (p.st === 'wait') ? (p.still || 0) + step : 0;
+    if (!p.w || p.st === 'cross' || p.st === 'corner') continue;
+    for (const [ci, zs] of p.w.z) { if (Math.abs(zs - p.s) < 12) ML.pedPend.push({ p, ci, x: pedFeatures(p, ci), t: sim.t + 2.5 }); }
+  }
+  while (ML.pedPend.length && ML.pedPend[0].t <= sim.t) {
+    const q = ML.pedPend.shift(); if (!sim.peds.includes(q.p)) continue;
+    ML.ped.add({ x: q.x, y: [q.p.st === 'cross' && q.p.ci === q.ci ? 1 : 0] });
+  }
+  if (ML.pedPend.length > 3000) ML.pedPend.splice(0, ML.pedPend.length - 3000);
+  // 3) Fahrstil beim Selbstfahren
+  if (!ap.on && running && car.mode === 'ground' && PL.lane && !PL.lane.c) {
+    const v = Math.max(0, speedFwd()), lim = PL.lane.spd, pr = probe(PL, Math.sin(car.yaw), Math.cos(car.yaw));
+    const remJ = PL.lane.L - PL.s, pedNear = sim.peds.some(p => Math.hypot(p.x - PL.x, p.z - PL.z) < 14);
+    if ((!pr || pr[0] > 35) && v > 2.5 && remJ > 20 && !K('KeyS') && !K('Space')) ML.speedMean += (clamp(v / lim, 0.3, 1.6) - ML.speedMean) * 0.01, ML.speed.add({ x: [PL.lane.rank / 6, lim / 14, Math.min(1, remJ / 80), pedNear ? 1 : 0, PL.lane.L > 60 ? 1 : 0], y: [clamp(v / lim, 0.3, 1.6)] });
+    if (pr && pr[0] < 40 && v > 3 && pr[1] > 2 && Math.abs(v - pr[1]) < 2.5) { const T = clamp((pr[0] - IDM.s0) / v, 0.4, 3.5); ML.headN++; ML.headT += (T - ML.headT) * Math.max(0.02, 1 / ML.headN); }
+  }
+  for (let i = 0; i < 2; i++) { ML.intent.step(); ML.ped.step(); }
+  for (let i = 0; i < 4; i++) ML.speed.step(16);
+  // Fahrstil anwenden
+  if (ML.style && ML.speed.n >= 120 && PL.lane && !PL.lane.c) {
+    const remJ = PL.lane.L - PL.s, pedNear = sim.peds.some(p => Math.hypot(p.x - PL.x, p.z - PL.z) < 14);
+    const m = ML.speed.net.predict([PL.lane.rank / 6, PL.lane.spd / 14, Math.min(1, remJ / 80), pedNear ? 1 : 0, PL.lane.L > 60 ? 1 : 0])[0], wgt = clamp((ML.speed.n - 120) / 600, 0, 1) * (ML.speed.mae < 0.15 ? 1 : 0.3);
+    PL.f = clamp(ML.speedMean + (m - ML.speedMean) * wgt, 0.6, 1.1); // mit wenig Daten: Mittelwert, später situationsabhängig
+    if (ML.headN >= 40) PL.T = clamp(ML.headT, 0.9, 2.4);
+  } else { PL.f = 1; PL.T = null; }
+  ML.saveT += step; if (ML.saveT > 20) { ML.saveT = 0; mlSave(); }
+}
+// Label setzen, sobald ein Fahrzeug in eine Abbiegekurve einfährt (Aufruf aus updateAgents)
+function mlOnLane(a, lane) {
+  const P = ML.pend.get(a.id); if (!P) return;
+  ML.pend.delete(a.id);
+  if (!lane.c || LANES[lane.inL].id !== P.lane) return;
+  const y = [0, 0, 0]; y[TURN_I[lane.turn] ?? 1] = 1;
+  for (const s of P.s) ML.intent.add({ x: s.x, mask: s.mask, y, eval: s.eval });
+}
+const ML_KEY = 'fsd-ml-v1';
+function mlSave() { try { localStorage.setItem(ML_KEY, JSON.stringify({ intent: ML.intent.net, ped: ML.ped.net, speed: ML.speed.net, n: [ML.intent.n, ML.ped.n, ML.speed.n], acc: [ML.intent.hits.slice(-200), [ML.ped.pos || [], ML.ped.neg || []]], headT: ML.headT, headN: ML.headN, speedMean: ML.speedMean })); } catch (e) { /* Speicher nicht verfügbar */ } }
+function mlLoad() {
+  try {
+    const o = JSON.parse(localStorage.getItem(ML_KEY) || 'null'); if (!o) return;
+    if (ML.intent.net.load(o.intent)) { ML.intent.n = o.n[0]; ML.intent.hits = o.acc[0] || []; }
+    if (ML.ped.net.load(o.ped)) { ML.ped.n = o.n[1]; const pn = o.acc[1] || []; ML.ped.pos = pn[0] || []; ML.ped.neg = pn[1] || []; }
+    if (ML.speed.net.load(o.speed)) ML.speed.n = o.n[2];
+    ML.headT = o.headT || 1.3; ML.headN = o.headN || 0; ML.speedMean = o.speedMean || 1;
+  } catch (e) { /* ignorieren */ }
+}
+function mlReset() {
+  try { localStorage.removeItem(ML_KEY); } catch (e) { /* */ }
+  ML.intent = new Learner('Abbiegeabsicht', new MLP([10, 16, 12, 3], 'softmax', 0.006));
+  ML.ped = new Learner('Querungsabsicht', new MLP([6, 12, 1], 'sigmoid', 0.008));
+  ML.speed = new Learner('Wunschtempo', new MLP([5, 10, 1], 'linear', 0.006).initBias(1));
+  ML.headT = 1.3; ML.headN = 0; ML.speedMean = 1; ML.pend.clear(); ML.pedPend.length = 0;
+}
+mlLoad();
+
+// --------- Vorhergesagte Pfade anzeigen (wie die Absichtslinien im Cockpit) ---------
+const PRED_MAX = 900;
+const predGeo = new THREE.BufferGeometry();
+predGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PRED_MAX * 2 * 3), 3));
+predGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(PRED_MAX * 2 * 3), 3));
+const predLines = new THREE.LineSegments(predGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+predLines.frustumCulled = false; predLines.renderOrder = 12; scene.add(predLines);
+function drawPredictions() {
+  const P = predGeo.attributes.position, C = predGeo.attributes.color; let n = 0;
+  predLines.visible = ML.show && ML.intent.n > 80;
+  if (!predLines.visible) return;
+  const o = {}, o2 = {};
+  for (const a of sim.agents) {
+    if (n > PRED_MAX - 30) break;
+    const l = a.lane; if (l.c || l.nx.length < 2 || Math.hypot(a.x - PL.x, a.z - PL.z) > 75) continue;
+    const d = l.L - a.s; if (d > 45) continue;
+    const pr = predictIntent({ a, s: a.s, v: a.v }, l);
+    for (const cid of l.nx) {
+      const c = LANES[cid], p = pr[TURN_I[c.turn] ?? 1]; if (p < 0.15) continue;
+      // Pfad: Rest der Spur + Abbiegekurve, Helligkeit = Wahrscheinlichkeit
+      const pts = []; for (let s = a.s + VCLASS[a.cls].L / 2; s < l.L; s += 3) { laneAt(l, s, o); pts.push([o.x, o.z]); }
+      for (let s = 0; s <= c.L; s += 2) { laneAt(c, s, o2); pts.push([o2.x, o2.z]); }
+      const k = 0.3 + 1.1 * p;
+      for (let i = 0; i < pts.length - 1 && n < PRED_MAX; i++, n++) {
+        const f = 1 - i / pts.length;
+        P.setXYZ(n * 2, pts[i][0], 0.09, pts[i][1]); P.setXYZ(n * 2 + 1, pts[i + 1][0], 0.09, pts[i + 1][1]);
+        C.setXYZ(n * 2, 0.55 * k * f, 0.7 * k * f, 0.95 * k * f); C.setXYZ(n * 2 + 1, 0.55 * k * f, 0.7 * k * f, 0.95 * k * f);
+      }
+    }
+  }
+  predGeo.setDrawRange(0, n * 2); P.needsUpdate = true; C.needsUpdate = true;
+}
+
 // ================= Autopilot-Gehirn =================
 // Jeder Frame: Wahrnehmen (Objekte im Routen-Koordinatensystem) → Lage bewerten (Vordermann, Stau, Panne,
 // Gegenverkehr, Fußgänger, Ampel/Vorrang) → Entscheiden (folgen, ausweichen, überholen, warten, umleiten,
@@ -6022,7 +6265,7 @@ function apUpdate(dt) {
     if (o.S - o.hl <= S0 + 0.3 || o.S - o.hl > S0 + 90) continue;
     const oe = offAt(o.S);
     if (Math.abs(o.l - oe) < o.hw + PL.W / 2 + 0.35) {
-      const gap = o.S - o.hl - (S0 + PL.L / 2), vl = Math.max(0, o.vs), x = idmAcc(v, v0, gap, v - vl, PL.amax);
+      const gap = o.S - o.hl - (S0 + PL.L / 2), vl = Math.max(0, o.vs), x = idmAcc(v, v0, gap, v - vl, PL.amax, PL.T);
       if (x < acc) { acc = x; why = o.kind === 'ped' ? 'ped' : o.vs < -0.5 ? 'oncoming' : 'lead'; }
       if (gap < leadGap) { leadGap = gap; lead = o; }
     }
@@ -6091,6 +6334,7 @@ function apUpdate(dt) {
   else {
     const W = { sigR: 'Halte an roter Ampel', sigY: 'Ampel gelb – halte an', left: 'Linksabbiegen: lasse Gegenverkehr durch', yield: PL.lane.sn === 'yield' ? 'Vorrang geben' : 'Rechts vor Links – warte', stop: 'Stopp-Schild – halte an', box: 'Kreuzung blockiert – fahre nicht ein', xing: 'Fußgänger am Zebrastreifen', msig: 'Fußgängerampel rot', end: 'Ziel erreicht', ped: 'Bremse für Fußgänger', oncoming: 'Gegenverkehr im Fahrweg', cross: 'Querverkehr – bremse', lead: lead ? (lead.vs > 1 ? `Folge Fahrzeug · ${Math.max(5, Math.round(lead.vs * 3.6 / 5) * 5)} km/h` : 'Fahrzeug vor mir hält') : 'Folge Fahrzeug' };
     if (W[why]) say(why, W[why]);
+    else if (ML.note && sim.t - ML.noteT < 1.5) say('ml', ML.note);
     else if (pedNear) say('pednear', 'Fußgänger nahe Fahrbahn – fahre langsamer');
     else if (r.v0 < PL.lane.spd - 2) say('curve', `Abbiegen/Kurve – verlangsame auf ${Math.max(10, Math.round(r.v0 * 3.6 / 5) * 5)} km/h`);
     else say('cruise', `Freie Fahrt · ${kmh(PL.lane.spd)} km/h`);
@@ -6426,6 +6670,20 @@ function openProposal(pr) {
   $('apProp').hidden = false;
 }
 function closeProposal() { $('apProp').hidden = true; }
+function mlPanel() {
+  const pct = x => Math.round(x * 100) + ' %', num = n => n.toLocaleString('de-AT');
+  $('mlOn').checked = ML.on; $('mlShow').checked = ML.show; $('mlStyle').checked = ML.style;
+  const st = (ok, txt) => `<b class="${ok ? 'mlok' : 'mlwait'}">${txt}</b>`;
+  $('mlStats').innerHTML =
+    `<tr><td>Abbiegen</td><td>${num(ML.intent.n)}</td><td>${ML.intent.acc ? pct(ML.intent.acc) : '–'}</td><td>${ML.trusted(ML.intent) ? st(1, 'aktiv') : st(0, 'lernt')}</td></tr>` +
+    `<tr><td>Fußgänger</td><td>${num(ML.ped.n)}</td><td>${ML.ped.acc ? pct(ML.ped.acc) : '–'}</td><td>${ML.trusted(ML.ped) ? st(1, 'aktiv') : st(0, 'lernt')}</td></tr>` +
+    `<tr><td>Fahrstil</td><td>${num(ML.speed.n)}</td><td>${ML.speed.n ? Math.round(ML.speedMean * 100) + ' % · ' + fmt(ML.headT, 1) + ' s' : '–'}</td><td>${ML.style && ML.speed.n >= 120 ? st(1, 'an') : st(0, ML.speed.n >= 120 ? 'bereit' : 'fahr selbst')}</td></tr>`;
+}
+$('mlOn').addEventListener('change', e => { ML.on = e.target.checked; });
+$('mlShow').addEventListener('change', e => { ML.show = e.target.checked; });
+$('mlStyle').addEventListener('change', e => { ML.style = e.target.checked; toast(ML.style ? (ML.speed.n >= 120 ? 'Autopilot fährt in deinem Stil' : 'Fahr erst ein paar Minuten selbst') : 'Standard-Fahrstil'); });
+$('mlReset').addEventListener('click', () => { mlReset(); mlPanel(); toast('KI-Modelle zurückgesetzt'); });
+$('menuBtn').addEventListener('click', () => mlPanel());
 $('scBreak').addEventListener('click', () => { scenarioBreakdown(false); toggleMenu(); });
 $('scJam').addEventListener('click', () => { scenarioBreakdown(true); toggleMenu(); });
 $('scRandom').addEventListener('change', e => { sim.randomBreak = e.target.checked; });
@@ -6556,8 +6814,10 @@ function frame(now) {
     matchPlayer(dt);
     updateAgents(dt, PL);
     updatePeds(dt, PL);
+    mlUpdate(dt);
     updateSignals(sim.t);
     drawAgents();
+    drawPredictions();
   }
   updateVisuals(dt);
   updateParticles(dt);
@@ -6565,6 +6825,7 @@ function frame(now) {
   updatePath(now / 1000);
   pMat.uniforms.scale.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
   if (frameN++ % 3 === 0) { hud(); drawMinimap(); drawBigMap(); }
+  if (frameN % 30 === 0 && !$('menu').hidden) mlPanel();
   updateAudio();
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').style.opacity = 0; }
   renderer.render(scene, camera);
@@ -6573,7 +6834,7 @@ setTrim('rocket');
 requestAnimationFrame(frame);
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 // API für eigene Modelle / Debug
-function simTick(n = 1, dt = 1 / 30, drive = false) { for (let i = 0; i < n; i++) { if (drive) { apUpdate(dt); for (let k = 0; k < 4; k++) step(dt / 4); collideVehicles(); } matchPlayer(dt); updateAgents(dt, PL); updatePeds(dt, PL); } }
+function simTick(n = 1, dt = 1 / 30, drive = false) { for (let i = 0; i < n; i++) { if (drive) { apUpdate(dt); for (let k = 0; k < 4; k++) step(dt / 4); collideVehicles(); } matchPlayer(dt); updateAgents(dt, PL); updatePeds(dt, PL); mlUpdate(dt); } }
 function dbg() {
   const r = planAccel(PL, 1 / 30), l = PL.lane, nx = PL.route[PL.ri + 1] != null ? LANES[PL.route[PL.ri + 1]] : null;
   const pr = probe(PL, Math.sin(car.yaw), Math.cos(car.yaw));
@@ -6581,7 +6842,7 @@ function dbg() {
     acc: r.acc, v0: r.v0, leader: r.leader ? { s: r.leader.s, v: r.leader.v, pl: !!r.leader.a.isPlayer, st: r.leader.a.stuck, wait: r.leader.a.waitJ } : null, probe: pr, apAcc: ap.accel, apSteer: ap.steer, wait: PL.wait,
     yield: nx && nx.c ? mustYield(PL, l, nx, false) : null, conf: nx && nx.c ? nx.cf.map(c => ({ c, occ: LANES[c].occ.length, com: LANES[c].com.length, inOcc: LANES[LANES[c].inL].occ.map(o => [Math.round(LANES[LANES[c].inL].L - o.s), +o.v.toFixed(1)]) })) : null };
 }
-window.FSD = { bh: () => ({ bh: bodyHeight(car.pos.x, car.pos.z, car.yaw), h: heightAt(car.pos.x, car.pos.z), y: car.pos.y, gear: car.gear, accel: ap.accel, steer: ap.steer, mode: car.mode, crash: car.crashT }), forceProposal: () => { brain.propCool = 0; brain.propKey = ''; return brain.jam && propose(brain.jam, { ok: false, why: 'Gegenverkehr' }); }, hopNow: () => { const h = brain.jam && hopPlan(brain.jam); if (h && h.ok) startHop(h); return h; }, dbgPass: () => brain.jam && ({ jam: { n: brain.jam.n, cause: brain.jam.cause, Ss: brain.jam.Sstart - brain.S0, Se: brain.jam.Send - brain.S0, chain: brain.jam.chain.map(o => [+(o.S - brain.S0).toFixed(1), +o.l.toFixed(2), +o.hw.toFixed(2)]) }, room: roadRoom(), nj: nextJunctionS() - brain.S0, pass: (({ threat, ...r }) => r)(passPlan(brain.jam.chain, false)), hop: hopPlan(brain.jam) }), brain, scenarioBreakdown, acceptOption, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), dbg, simTick, setClassModel, sim, car, ap, PL, LANES, setDestination, startAP, stopAP, get city() { return CITY; }, toast, setCam(m) { camMode = m; camSnap = true; } };
+window.FSD = { ML, mlPanel, bh: () => ({ bh: bodyHeight(car.pos.x, car.pos.z, car.yaw), h: heightAt(car.pos.x, car.pos.z), y: car.pos.y, gear: car.gear, accel: ap.accel, steer: ap.steer, mode: car.mode, crash: car.crashT }), forceProposal: () => { brain.propCool = 0; brain.propKey = ''; return brain.jam && propose(brain.jam, { ok: false, why: 'Gegenverkehr' }); }, hopNow: () => { const h = brain.jam && hopPlan(brain.jam); if (h && h.ok) startHop(h); return h; }, dbgPass: () => brain.jam && ({ jam: { n: brain.jam.n, cause: brain.jam.cause, Ss: brain.jam.Sstart - brain.S0, Se: brain.jam.Send - brain.S0, chain: brain.jam.chain.map(o => [+(o.S - brain.S0).toFixed(1), +o.l.toFixed(2), +o.hw.toFixed(2)]) }, room: roadRoom(), nj: nextJunctionS() - brain.S0, pass: (({ threat, ...r }) => r)(passPlan(brain.jam.chain, false)), hop: hopPlan(brain.jam) }), brain, scenarioBreakdown, acceptOption, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), dbg, simTick, setClassModel, sim, car, ap, PL, LANES, setDestination, startAP, stopAP, get city() { return CITY; }, toast, setCam(m) { camMode = m; camSnap = true; } };
 boot();
 
 })();

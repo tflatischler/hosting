@@ -14,6 +14,14 @@ Umleitung umfahren. Wo das ohne Kaltgas nicht geht, schlägt er Kaltgas-Manöver
 Boost-Überholen) – mit Flugbahn, Kaltgas-Bedarf und Begründung – und führt sie erst nach Bestätigung aus.
 Szenarien („Panne vor mir“, „Stau hinter Panne“) im Menü.
 
+## KI-Modelle (lernen live im Browser)
+
+Kleine neuronale Netze (MLP mit Adam, reines JavaScript) trainieren online aus dem laufenden Verkehr:
+Abbiegeabsicht anderer Fahrzeuge (aus Blinker, Tempo, Verzögerung, Spur, Abstand), Querungsabsicht von
+Fußgängern am Zebrastreifen (balanciert trainiert) und dein Fahrstil (Wunschtempo je Situation, Zeitabstand).
+Der Autopilot nutzt die Vorhersagen statt internem Simulationswissen, sobald die laufend gemessene
+Trefferquote reicht; vorhergesagte Pfade werden angezeigt. Gewichte bleiben im Browser gespeichert.
+
 ## Stadtdaten
 
 Die Seite holt sich die Daten in dieser Reihenfolge:
