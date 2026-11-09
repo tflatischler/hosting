@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top 10 GitHub Repos</title>
+<meta name="description" content="Die zehn GitHub-Repositories mit den meisten Sternen – live über die GitHub-API, filterbar nach Sprache und Zeitraum.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090c11; --panel:#11171f; --card:#141b24; --card-hi:#18212c;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+    --text:#e7eef6; --muted:#8593a3; --faint:#5b6776;
+    --accent:#ff7a45; --accent-soft:rgba(255,122,69,.14); --teal:#4dd6c1;
+    --gold:#f5c451; --silver:#c9d3dd; --bronze:#d99566;
+    --radius:14px;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.55;min-height:100vh;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(900px 600px at 80% -10%,rgba(255,122,69,.11),transparent 60%),
+               radial-gradient(800px 700px at 0% 100%,rgba(77,214,193,.07),transparent 55%)}
+  a{color:inherit;text-decoration:none}
+  .wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 16px 64px}
+
+  header{padding:48px 0 28px}
+  .back{font-family:var(--mono);font-size:12px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+  .back:hover{color:var(--accent)}
+  .eyebrow{margin-top:28px;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:clamp(34px,6vw,58px);line-height:1.02;font-weight:800;letter-spacing:-.025em;margin-top:8px}
+  h1 span{color:var(--accent)}
+  .lede{color:var(--muted);max-width:60ch;margin-top:14px;font-size:17px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 22px;
+    padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+  .field{display:flex;flex-direction:column;gap:4px;flex:1 1 160px}
+  .field label{font-family:var(--mono);font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
+  select,button{font:500 14px var(--sans);color:var(--text);background:var(--card);border:1px solid var(--line-2);
+    border-radius:10px;padding:9px 12px;min-height:40px}
+  select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button{cursor:pointer;flex:0 0 auto;align-self:flex-end}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  .status{width:100%;font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal)}
+  .dot.warn{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  .dot.load{background:var(--muted);box-shadow:none;animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+
+  ol{list-style:none;display:flex;flex-direction:column;gap:12px}
+  .repo{display:grid;grid-template-columns:56px 1fr;gap:16px;padding:18px;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);transition:border-color .15s,background .15s,transform .15s}
+  .repo:hover{border-color:var(--line-2);background:var(--card-hi);transform:translateY(-1px)}
+  .rank{font:700 30px/1 var(--mono);color:var(--faint);text-align:center;padding-top:6px}
+  .repo:nth-child(1) .rank{color:var(--gold)}
+  .repo:nth-child(2) .rank{color:var(--silver)}
+  .repo:nth-child(3) .rank{color:var(--bronze)}
+  .head{display:flex;gap:12px;align-items:center;min-width:0}
+  .head img{width:36px;height:36px;border-radius:9px;background:var(--panel);flex:0 0 auto}
+  .name{min-width:0}
+  .name a{font-weight:700;font-size:18px;word-break:break-word}
+  .name a:hover{color:var(--accent)}
+  .name .owner{color:var(--muted);font-weight:500}
+  .desc{color:var(--muted);margin:8px 0 12px;font-size:15px;overflow-wrap:anywhere}
+  .bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:12px}
+  .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),#ffb38f);
+    width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .meta b{color:var(--text);font-weight:600}
+  .meta .stars b{color:var(--accent)}
+  .lang-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .tags span{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:99px;background:var(--accent-soft);color:#ffb38f}
+  .empty{padding:40px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:var(--radius)}
+  footer{margin-top:36px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  footer a{color:var(--muted);text-decoration:underline}
+
+  @media (max-width:560px){
+    header{padding-top:28px}
+    .repo{grid-template-columns:1fr;gap:10px;padding:16px}
+    .rank{text-align:left;font-size:22px;padding:0}
+    button{width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="../../">← Alle Seiten</a>
+    <div class="eyebrow">GitHub · Ranking nach Sternen</div>
+    <h1>Top <span>10</span> GitHub Repos</h1>
+    <p class="lede">Die Repositories mit den meisten Sternen auf GitHub – live abgefragt, filterbar nach Programmiersprache und Erstellungszeitraum.</p>
+  </header>
+
+  <div class="controls">
+    <div class="field">
+      <label for="lang">Sprache</label>
+      <select id="lang">
+        <option value="">Alle Sprachen</option>
+        <option>JavaScript</option><option>TypeScript</option><option>Python</option>
+        <option>Go</option><option>Rust</option><option>Java</option><option>C++</option>
+        <option>C</option><option>C#</option><option>PHP</option><option>Kotlin</option>
+        <option>Swift</option><option>Ruby</option><option>Shell</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="period">Erstellt</label>
+      <select id="period">
+        <option value="">Jederzeit</option>
+        <option value="365">Im letzten Jahr</option>
+        <option value="90">In den letzten 90 Tagen</option>
+        <option value="30">In den letzten 30 Tagen</option>
+      </select>
+    </div>
+    <button id="reload" type="button">↻ Aktualisieren</button>
+    <div class="status" id="status"><span class="dot load"></span><span>Lade …</span></div>
+  </div>
+
+  <ol id="list" aria-live="polite"></ol>
+
+  <footer>
+    Daten: <a href="https://docs.github.com/en/rest/search/search#search-repositories" target="_blank" rel="noopener">GitHub Search API</a>.
+    Ohne Login erlaubt GitHub ca. 10 Suchanfragen pro Minute – Ergebnisse werden 10 Minuten im Browser zwischengespeichert.
+  </footer>
+</div>
+
+<script>
+// Snapshot used when the API is unreachable or rate-limited (only for the unfiltered ranking).
+const SNAPSHOT = { date: "09.11.2026", items: [{"full_name": "codecrafters-io/build-your-own-x", "html_url": "https://github.com/codecrafters-io/build-your-own-x", "description": "Master programming by recreating your favorite technologies from scratch.", "stargazers_count": 561239, "forks_count": 52517, "language": "Markdown", "open_issues_count": 692, "pushed_at": "2026-11-08T16:38:15Z", "avatar": "https://avatars.githubusercontent.com/u/58904235?v=4", "topics": ["awesome-list", "free", "programming", "tutorial-code"]}, {"full_name": "sindresorhus/awesome", "html_url": "https://github.com/sindresorhus/awesome", "description": "😎 Awesome lists about all kinds of interesting topics [NOTE: Pull requests are temporarily disabled until I have a chance to catch up with the existing ones]", "stargazers_count": 534210, "forks_count": 38268, "language": null, "open_issues_count": 103, "pushed_at": "2026-09-02T02:10:47Z", "avatar": "https://avatars.githubusercontent.com/u/170270?v=4", "topics": ["awesome", "awesome-list", "lists", "resources"]}, {"full_name": "public-apis/public-apis", "html_url": "https://github.com/public-apis/public-apis", "description": "A collective list of free APIs", "stargazers_count": 497490, "forks_count": 55622, "language": "Python", "open_issues_count": 2588, "pushed_at": "2026-11-07T19:45:54Z", "avatar": "https://avatars.githubusercontent.com/u/51121562?v=4", "topics": ["api", "apis", "dataset", "development"]}, {"full_name": "freeCodeCamp/freeCodeCamp", "html_url": "https://github.com/freeCodeCamp/freeCodeCamp", "description": "freeCodeCamp.org's open-source codebase and curriculum. Learn math, programming, and computer science for free.", "stargazers_count": 458800, "forks_count": 47852, "language": "TypeScript", "open_issues_count": 191, "pushed_at": "2026-11-09T13:25:32Z", "avatar": "https://avatars.githubusercontent.com/u/9892522?v=4", "topics": ["careers", "certification", "community", "curriculum"]}, {"full_name": "morluto/rea", "html_url": "https://github.com/morluto/rea", "description": "Reverse engineer anything with agents, from app behavior down to native binaries.", "stargazers_count": 445678, "forks_count": 110009, "language": "TypeScript", "open_issues_count": 1634, "pushed_at": "2026-11-09T13:54:25Z", "avatar": "https://avatars.githubusercontent.com/u/76467478?v=4", "topics": ["agent-skills", "ai", "android", "claude-code"]}, {"full_name": "EbookFoundation/free-programming-books", "html_url": "https://github.com/EbookFoundation/free-programming-books", "description": ":books: Freely available programming books", "stargazers_count": 401351, "forks_count": 67484, "language": "Python", "open_issues_count": 95, "pushed_at": "2026-11-07T19:10:09Z", "avatar": "https://avatars.githubusercontent.com/u/14127308?v=4", "topics": ["books", "education", "hacktoberfest", "list"]}, {"full_name": "openclaw/openclaw", "html_url": "https://github.com/openclaw/openclaw", "description": "The AI that really does things. Any OS. Any Platform. The lobster way. 🦞 ", "stargazers_count": 394229, "forks_count": 82851, "language": "TypeScript", "open_issues_count": 8051, "pushed_at": "2026-11-09T13:51:46Z", "avatar": "https://avatars.githubusercontent.com/u/252820863?v=4", "topics": ["ai", "assistant", "crustacean", "molty"]}, {"full_name": "donnemartin/system-design-primer", "html_url": "https://github.com/donnemartin/system-design-primer", "description": "Learn how to design large-scale systems. Prep for the system design interview.  Includes Anki flashcards.", "stargazers_count": 377406, "forks_count": 59244, "language": "Python", "open_issues_count": 644, "pushed_at": "2026-09-15T01:10:09Z", "avatar": "https://avatars.githubusercontent.com/u/5458997?v=4", "topics": ["design", "design-patterns", "design-system", "development"]}, {"full_name": "nilbuild/developer-roadmap", "html_url": "https://github.com/nilbuild/developer-roadmap", "description": "Interactive roadmaps, guides and other educational content to help developers grow in their careers.", "stargazers_count": 371610, "forks_count": 45663, "language": "TypeScript", "open_issues_count": 5, "pushed_at": "2026-11-09T07:46:12Z", "avatar": "https://avatars.githubusercontent.com/u/4921183?v=4", "topics": ["angular-roadmap", "backend-roadmap", "blockchain-roadmap", "computer-science"]}, {"full_name": "jwasham/coding-interview-university", "html_url": "https://github.com/jwasham/coding-interview-university", "description": "A complete computer science study plan to become a software engineer.", "stargazers_count": 364133, "forks_count": 85539, "language": null, "open_issues_count": 23, "pushed_at": "2026-11-07T16:03:02Z", "avatar": "https://avatars.githubusercontent.com/u/3771963?v=4", "topics": ["algorithm", "algorithms", "coding-interview", "coding-interviews"]}] };
+
+const LANG_COLORS = {JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',Go:'#00ADD8',Rust:'#dea584',
+  Java:'#b07219','C++':'#f34b7d',C:'#555555','C#':'#178600',PHP:'#4F5D95',Kotlin:'#A97BFF',Swift:'#F05138',
+  Ruby:'#701516',Shell:'#89e051',Markdown:'#083fa1',Dart:'#00B4AB',Vue:'#41b883',HTML:'#e34c26',CSS:'#563d7c'};
+const CACHE_MS = 10 * 60 * 1000;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('de-DE');
+const compact = new Intl.NumberFormat('de-DE', {notation:'compact', maximumFractionDigits:1});
+const rtf = new Intl.RelativeTimeFormat('de', {numeric:'auto'});
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ago(iso){
+  const d = (new Date(iso) - Date.now()) / 1000;
+  const steps = [[60,'second'],[60,'minute'],[24,'hour'],[30,'day'],[12,'month'],[Infinity,'year']];
+  let v = d;
+  for (const [n,u] of steps){ if (Math.abs(v) < n) return rtf.format(Math.round(v), u); v /= n; }
+}
+function cacheGet(k){ try{ const c = JSON.parse(localStorage.getItem(k)); if (c && Date.now()-c.t < CACHE_MS) return c; }catch(e){} return null; }
+function cacheSet(k,v){ try{ localStorage.setItem(k, JSON.stringify({t:Date.now(), items:v})); }catch(e){} }
+
+function buildQuery(){
+  const lang = $('lang').value, days = $('period').value;
+  const q = [];
+  if (days){
+    const d = new Date(Date.now() - days*864e5).toISOString().slice(0,10);
+    q.push('created:>' + d);
+  } else q.push('stars:>1000');
+  if (lang) q.push('language:"' + lang + '"');
+  return q.join(' ');
+}
+
+function normalize(r){
+  return { full_name:r.full_name, html_url:r.html_url, description:r.description,
+    stargazers_count:r.stargazers_count, forks_count:r.forks_count, language:r.language,
+    open_issues_count:r.open_issues_count, pushed_at:r.pushed_at,
+    avatar:r.owner?.avatar_url, topics:(r.topics||[]).slice(0,4) };
+}
+
+function setStatus(kind, text){
+  $('status').innerHTML = `<span class="dot ${kind}"></span><span>${esc(text)}</span>`;
+}
+
+function render(items){
+  const list = $('list');
+  if (!items.length){ list.innerHTML = '<li class="empty">Keine Repositories für diesen Filter gefunden.</li>'; return; }
+  const max = items[0].stargazers_count || 1;
+  list.innerHTML = items.map((r,i) => {
+    const [owner, name] = r.full_name.split('/');
+    const color = LANG_COLORS[r.language] || '#8593a3';
+    return `<li class="repo">
+      <div class="rank">${String(i+1).padStart(2,'0')}</div>
+      <div>
+        <div class="head">
+          ${r.avatar ? `<img src="${esc(r.avatar)}&s=72" alt="" loading="lazy">` : ''}
+          <div class="name"><a href="${esc(r.html_url)}" target="_blank" rel="noopener"><span class="owner">${esc(owner)} /</span> ${esc(name)}</a></div>
+        </div>
+        <p class="desc">${esc(r.description || 'Keine Beschreibung.')}</p>
+        <div class="bar" title="${nf.format(r.stargazers_count)} Sterne"><i data-w="${(r.stargazers_count/max*100).toFixed(1)}"></i></div>
+        <div class="meta">
+          <span class="stars">★ <b>${nf.format(r.stargazers_count)}</b></span>
+          <span>⑂ <b>${compact.format(r.forks_count)}</b> Forks</span>
+          <span>◎ <b>${compact.format(r.open_issues_count)}</b> Issues</span>
+          ${r.language ? `<span><i class="lang-dot" style="background:${color}"></i>${esc(r.language)}</span>` : ''}
+          ${r.pushed_at ? `<span>Push ${esc(ago(r.pushed_at))}</span>` : ''}
+        </div>
+        ${r.topics?.length ? `<div class="tags">${r.topics.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      </div>
+    </li>`;
+  }).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() =>
+    list.querySelectorAll('.bar i').forEach(b => b.style.width = b.dataset.w + '%')));
+}
+
+let reqId = 0;
+async function load(force){
+  const q = buildQuery(), key = 'top10:' + q, my = ++reqId;
+  const cached = !force && cacheGet(key);
+  if (cached){ render(cached.items); setStatus('', 'Live-Daten · Stand ' + new Date(cached.t).toLocaleTimeString('de-DE')); return; }
+  setStatus('load', 'Lade von GitHub …');
+  try{
+    const url = 'https://api.github.com/search/repositories?per_page=10&sort=stars&order=desc&q=' + encodeURIComponent(q);
+    const res = await fetch(url, {headers:{Accept:'application/vnd.github+json'}});
+    if (my !== reqId) return;
+    if (!res.ok){
+      const reset = res.headers.get('x-ratelimit-reset');
+      const err = new Error(res.status === 403 || res.status === 429
+        ? 'GitHub-Rate-Limit erreicht' + (reset ? ' – wieder möglich ' + ago(new Date(reset*1000).toISOString()) : '')
+        : 'GitHub antwortet mit HTTP ' + res.status);
+      throw err;
+    }
+    const items = (await res.json()).items.map(normalize);
+    cacheSet(key, items);
+    render(items);
+    setStatus('', 'Live-Daten · Stand ' + new Date().toLocaleTimeString('de-DE'));
+  }catch(e){
+    if (my !== reqId) return;
+    if (e instanceof TypeError) e = new Error('GitHub nicht erreichbar');
+    const unfiltered = !$('lang').value && !$('period').value;
+    if (unfiltered){
+      render(SNAPSHOT.items);
+      setStatus('warn', (e.message || 'Offline') + ' · zeige Snapshot vom ' + SNAPSHOT.date);
+    } else {
+      $('list').innerHTML = '<li class="empty">Daten konnten nicht geladen werden. Bitte gleich nochmal versuchen.</li>';
+      setStatus('warn', e.message || 'Netzwerkfehler');
+    }
+  }
+}
+
+$('lang').addEventListener('change', () => load());
+$('period').addEventListener('change', () => load());
+$('reload').addEventListener('click', () => load(true));
+load();
+</script>
+</body>
+</html>
