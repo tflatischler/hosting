@@ -25,6 +25,10 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Embed OSM city data for FSD City Eisenstadt (Overpass)
+        continue-on-error: true
+        run: node projects/fsd-city-eisenstadt/tools/build-city.mjs
+
       - name: Regenerate sites.json from the repo's HTML files
         run: python3 gen-index.py
 
