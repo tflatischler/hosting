@@ -79,6 +79,10 @@ canvas#gl{position:fixed;inset:0;display:block}
 .mlT th:last-child{text-align:right;padding-right:0}
 .mlok{color:#7fd6a0;font-weight:600}.mlwait{color:#ffb347}
 .mlChips{margin-top:8px}
+body::before,body::after{content:"";position:fixed;left:0;right:0;height:0;background:#000;z-index:1;pointer-events:none;transition:height .6s ease}
+body::before{top:0} body::after{bottom:0}
+body.cine::before,body.cine::after{height:9vh}
+body.cine #drive,body.cine #nav,body.cine #mapWrap,body.cine #street,body.cine #apMind{opacity:0;transition:opacity .4s}
 /* Buttons + Minimap rechts */
 #topRight{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));display:flex;gap:6px;z-index:3}
 .btn{font:inherit;font-size:14px;font-weight:500;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 13px;cursor:pointer;display:flex;align-items:center;gap:6px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
@@ -139,6 +143,8 @@ kbd{display:inline-block;min-width:20px;text-align:center;border:1px solid var(-
   #navIcoW{width:38px;height:38px} #navDist{font-size:18px}
   #street{display:none}
   .btn span{display:none}
+  #mapBtn{display:none}
+  #topRight{gap:5px} #topRight .btn{padding:8px 10px}
   #apTxt{display:none}
   #toast{font-size:16px;top:42%}
   #apMind{top:auto;bottom:calc(262px + env(safe-area-inset-bottom,0px));font-size:12.5px}
@@ -8994,9 +9000,12 @@ function buildRealBuildings() {
     for (const p of (ny >= 0 ? [a, b, c] : [a, c, b])) { R.pos.push(p[0], p[1], p[2]); R.col.push(col.r, col.g, col.b); }
   };
   const rquad = (a, b, c, d, col) => { rtri(a, b, c, col); rtri(a, c, d, col); };
-  CITY.buildings.forEach((B, bi) => {
+  let bad = 0;
+  CITY.buildings.forEach((B, bi) => { try { buildOne(B, bi); } catch (e) { bad++; } });
+  if (bad) console.warn(bad + ' Gebäude übersprungen');
+  function buildOne(B, bi) {
     const info = B[2] || {}; if (info.hp) return;
-    const P = BLD[bi].P, n = P.length / 2, area = polyArea(P); if (area < 6) return;
+    const P = BLD[bi].P, n = P.length / 2, area = polyArea(P); if (!(area >= 6) || n < 3) return;
     const seed = hashStr(P[0].toFixed(1) + ',' + P[1].toFixed(1)), name = info.n || '';
     let kind = info.k === 'c' ? 1 : info.k === 'p' ? 2 : info.k === 'i' ? 3 : 0;
     if (/schloss|palais|rathaus/i.test(name)) kind = 2;
@@ -9053,7 +9062,7 @@ function buildRealBuildings() {
         polyTop(Q, Hi, rc);
       } else polyTop(P, H, c3.set('#8a8781').convertSRGBToLinear().clone());
     } else polyTop(P, H, c3.set(kind === 3 ? '#7e7d79' : '#8a8781').convertSRGBToLinear().clone());
-  });
+  }
   function polyTop(P, y, col) {
     const v = []; for (let i = 0; i < P.length; i += 2) v.push(new THREE.Vector2(P[i], P[i + 1]));
     let tr = []; try { tr = THREE.ShapeUtils.triangulateShape(v, []); } catch (e) { return; }
@@ -9228,6 +9237,25 @@ function buildWalls() {
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide })); m.castShadow = m.receiveShadow = true; m.frustumCulled = false; realGroup.add(m);
 }
 
+// ---------- Wolkendecke (prozedural, fbm) ----------
+let CLOUDS = null;
+function buildClouds() {
+  const g = new THREE.PlaneGeometry(9000, 9000, 1, 1); g.rotateX(Math.PI / 2);
+  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+    uniforms: { uTime: U_TIME, uCov: { value: 0.45 }, uSun: { value: new V3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uDay: { value: 1 } },
+    vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform float uTime, uCov, uDay; uniform vec3 uSun, uSunCol; varying vec3 vW;
+float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n(p); p *= 2.03; a *= 0.5; } return s; }
+void main(){ vec2 p = vW.xz * 0.0012 + vec2(uTime * 0.004, uTime * 0.0015);
+  float d = fbm(p), c = smoothstep(1.0 - uCov, 1.0 - uCov + 0.35, d);
+  float sh = fbm(p + uSun.xz * 0.04); float lit = clamp(1.0 - (sh - d) * 3.0, 0.45, 1.0);
+  vec3 col = mix(vec3(0.55, 0.58, 0.64), uSunCol, 0.6) * lit * (0.18 + 0.82 * uDay);
+  float fade = 1.0 - smoothstep(1800.0, 4200.0, length(vW.xz - cameraPosition.xz));
+  gl_FragColor = vec4(col, c * fade * 0.92); }` });
+  CLOUDS = new THREE.Mesh(g, m); CLOUDS.position.y = 950; CLOUDS.frustumCulled = false; CLOUDS.renderOrder = -1; realGroup.add(CLOUDS);
+}
 // ---------- Regen ----------
 let RAIN = null;
 function buildRain() {
@@ -9321,7 +9349,7 @@ function setViewMode(m) {
   if (real) updateSky(0, true);
 }
 function buildRealWorld() {
-  makeTextures(); initSky(); buildRealGround(); buildRealBuildings(); buildTrees(); buildVines(); buildLamps(); buildWalls(); buildRain(); buildPost();
+  makeTextures(); initSky(); buildRealGround(); buildRealBuildings(); buildTrees(); buildVines(); buildLamps(); buildWalls(); buildRain(); buildClouds(); buildPost();
   RV.built = true; setViewMode(RV.mode);
 }
 // pro Frame
@@ -9331,6 +9359,7 @@ function updateReal(dt) {
   RV.rain += ((RV.rainOn ? 1 : 0) - RV.rain) * Math.min(1, dt * 0.4); U_WET.value = clamp(RV.rain * 1.2, 0, 1);
   updateSky(dt);
   if (RV.lampMat) { RV.lampMat.emissiveIntensity = RV.night * 4; RV.poolMat.opacity = RV.night * 0.55; }
+  if (CLOUDS) { const u = CLOUDS.material.uniforms; u.uCov.value = 0.42 + RV.rain * 0.5; u.uSun.value.copy(sky.material.uniforms.sunPosition.value); u.uSunCol.value.copy(_sunCol); u.uDay.value = clamp((RV.sunEl * 57.3 + 4) / 14, 0, 1); CLOUDS.position.x = camera.position.x; CLOUDS.position.z = camera.position.z; }
   if (RAIN) { RAIN.visible = RV.rain > 0.02; RAIN.material.uniforms.uA.value = RV.rain; RAIN.material.uniforms.uCam.value.copy(camera.position); }
   if (RV.water) { RV.water.normalMap.offset.x += dt * 0.01; RV.water.normalMap.offset.y += dt * 0.006; }
   if (bloomPass) bloomPass.strength = 0.25 + RV.night * 0.5;
@@ -9381,7 +9410,8 @@ function updateVisuals(dt) {
 // ================= Kamera =================
 const camPos = new V3(), camLook = new V3(), camUp = new V3(0, 1, 0); let camSnap = true, camYaw = 0, camT = 0;
 const free = { yaw: 0.6, pitch: 0.55, dist: 26 }, topV = { h: 110 };
-const CAM_NAMES = ['Verfolger', 'Draufsicht', 'Freie Kamera'];
+const CAM_NAMES = ['Verfolger', 'Draufsicht', 'Freie Kamera', 'Kino'];
+const cine = { t: 0, shot: 0 };
 function updateCamera(dt) {
   camT += dt;
   const p = car.pos, spd = speedAbs();
@@ -9393,11 +9423,20 @@ function updateCamera(dt) {
   const hx = Math.sin(camYaw), hz = Math.cos(camYaw);
   if (camMode === 0) {
     // schräg von hinten oben (≈27°), zoomt mit dem Tempo leicht heraus
-    const dist = 14 + Math.min(12, spd * 0.18), pitch = 27 * Math.PI / 180;
-    tl.set(p.x + hx * 6, p.y + 0.6, p.z + hz * 6);
+    const portrait = camera.aspect < 0.9, dist = (14 + Math.min(12, spd * 0.18)) * (portrait ? 1.45 : 1), pitch = (portrait ? 31 : 27) * Math.PI / 180, ahead = portrait ? -1.5 : 6;
+    tl.set(p.x + hx * ahead, p.y + (portrait ? -2.2 : 0.6), p.z + hz * ahead);
     tp.set(tl.x - hx * dist * Math.cos(pitch), tl.y + dist * Math.sin(pitch), tl.z - hz * dist * Math.cos(pitch));
   } else if (camMode === 1) {
     const h = topV.h + spd * 1.2; tl.set(p.x + hx * h * 0.12, p.y, p.z + hz * h * 0.12); tp.set(tl.x, h, tl.z + 0.01); tu.set(hx, 0, hz); kp = 4;
+  } else if (camMode === 3) {
+    // Kino: wechselnde Einstellungen (Fahrt seitlich, tiefe Front, Kran von oben)
+    cine.t += dt; if (cine.t > 7) { cine.t = 0; cine.shot = (cine.shot + 1) % 4; camSnap = true; }
+    const u = cine.t / 7, sx = Math.cos(camYaw), sz = -Math.sin(camYaw);
+    if (cine.shot === 0) { tp.set(p.x + sx * 7 - hx * (6 - u * 10), p.y + 1.1, p.z + sz * 7 - hz * (6 - u * 10)); tl.set(p.x, p.y + 0.7, p.z); }
+    else if (cine.shot === 1) { tp.set(p.x + hx * 9 - sx * 2, p.y + 0.45, p.z + hz * 9 - sz * 2); tl.set(p.x, p.y + 0.8, p.z); }
+    else if (cine.shot === 2) { const a = u * 2.2; tp.set(p.x + Math.cos(a) * 16, p.y + 12 - u * 7, p.z + Math.sin(a) * 16); tl.set(p.x, p.y + 0.5, p.z); }
+    else { tp.set(p.x - hx * 4 + sx * 1.6, p.y + 1.6, p.z - hz * 4 + sz * 1.6); tl.set(p.x + hx * 30, p.y + 1, p.z + hz * 30); }
+    kp = cine.shot === 3 ? 30 : 8;
   } else {
     tl.set(p.x, p.y + 1, p.z);
     tp.set(p.x + Math.sin(free.yaw) * Math.cos(free.pitch) * free.dist, p.y + 1 + Math.sin(free.pitch) * free.dist, p.z + Math.cos(free.yaw) * Math.cos(free.pitch) * free.dist); kp = 12;
@@ -9552,7 +9591,7 @@ const TAKEOVER = ['KeyA', 'KeyD', 'KeyS', 'ArrowLeft', 'ArrowRight', 'ArrowDown'
 function toggle(code) {
   if (code === 'KeyF') { if (!TRIMS[trim].fan) { toast('Suction erst ab Performance'); return; } fanOn = !fanOn; toast(fanOn ? 'Suction an' : 'Suction aus'); }
   if (code === 'KeyH') { if (!TRIMS[trim].rocket) { toast('Schweben nur mit Rocket'); return; } stopAP(); car.hover = !car.hover; car.hoverY = car.pos.y + (car.mode === 'ground' ? 3 : 0); toast(car.hover ? 'Schwebe-Modus' : 'Schwebe-Modus aus'); }
-  if (code === 'KeyC') { camMode = (camMode + 1) % 3; toast(CAM_NAMES[camMode]); }
+  if (code === 'KeyC') { camMode = (camMode + 1) % 4; cine.t = 0; toast(CAM_NAMES[camMode]); document.body.classList.toggle('cine', camMode === 3); }
   if (code === 'KeyT') { if (ap.on) stopAP('Autopilot aus'); else startAP(); }
   if (code === 'KeyX' || code === 'Backspace') respawn();
   if (code === 'KeyN') { car.gear = car.gear === 'N' ? 'D' : 'N'; toast(car.gear === 'N' ? 'Neutral' : 'Drive'); }

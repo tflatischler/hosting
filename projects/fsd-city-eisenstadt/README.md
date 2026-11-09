@@ -4,6 +4,15 @@ Single-File-Browserspiel (`index.html`, komplett eigenständig: three.js, GLTFLo
 im Look der Tesla-Cockpit-Umgebungsansicht, mit KI-Verkehr, Fußgängern, Autopilot und dem Roadster samt
 Suction-Fans und Kaltgas-Düsen (Fahrlogik aus „Roadster Thruster: Starbase“).
 
+## Grafik
+
+Zwei Ansichten (Taste V): **Realistisch** mit physikalischem Himmel und echtem Sonnenstand über Eisenstadt,
+Tag/Nacht (Echtzeit oder Regler), Wolken, Regen mit nasser Fahrbahn, Echtzeit-Schatten, Umgebungsreflexionen,
+Fassaden-Shader mit Fenstern je Stockwerk (nachts beleuchtet), Ziegeldächern aus OSM-Dachform/-farbe,
+Kirchtürmen aus Gebäudeteilen, Bäumen mit Herbstlaub und Wind, Weinstöcken, Laternen mit Lichtkegeln und
+SSAO/Bloom/Filmlook; Qualitätsstufen für Handys. **Cockpit-Visualisierung** wie bisher. Kamera C: Verfolger,
+Draufsicht, frei, Kino.
+
 ## Autopilot
 
 Entscheidet jeden Frame neu aus der aktuellen Lage: Objekte werden ins Routen-Koordinatensystem projiziert,
