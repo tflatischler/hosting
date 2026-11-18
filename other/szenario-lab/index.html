@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Szenario Lab</title>
+<meta name="description" content="Gesellschaftliche Szenarien durchrechnen: ein lokales 8B-LLM baut ein Kausalmodell, Monte Carlo liefert die Wahrscheinlichkeiten.">
+<style>
+  :root {
+    --bg: #070912;
+    --card: #0f1324;
+    --card2: #141a30;
+    --border: rgba(140, 160, 255, 0.16);
+    --text: #e2e6ff;
+    --muted: #8b93b8;
+    --accent: #7ea8ff;
+    --up: #5cc8ff;
+    --down: #ff9f5c;
+    --pos: #6fe0a0;
+    --neg: #ff7a8a;
+    --warn: #ffd166;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 20px 16px 60px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  a { color: var(--accent); }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
+  header .tag { color: var(--muted); font-size: 13px; }
+  header .back { margin-left: auto; font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  textarea { width: 100%; min-height: 84px; resize: vertical; background: var(--card2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; font: inherit; font-size: 15px; }
+  textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  button, select { font: inherit; color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 9px; padding: 7px 12px; cursor: pointer; }
+  button:hover { background: rgba(126,168,255,.14); }
+  button.primary { background: var(--accent); color: #0a0f22; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  button:disabled { opacity: .5; cursor: default; }
+  .examples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; color: var(--muted); font-size: 12px; }
+  .examples button { font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+  .status { margin-top: 10px; font-size: 12px; color: var(--muted); min-height: 18px; }
+  .status.err { color: var(--neg); }
+  .bar { height: 4px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; margin-top: 6px; display: none; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  pre.stream { display: none; max-height: 140px; overflow: auto; background: #05070e; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font: 11px/1.45 ui-monospace, monospace; color: #9fb3e8; white-space: pre-wrap; word-break: break-word; margin: 10px 0 0; }
+  details { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  details pre { white-space: pre-wrap; background: #05070e; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: 11px/1.5 ui-monospace, monospace; color: #b9c4ee; }
+  summary { cursor: pointer; }
+
+  #results { display: none; margin-top: 16px; }
+  .title-row h2.big { font-size: 20px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--text); }
+  .title-row p { color: var(--muted); margin: 4px 0 0; }
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; margin-top: 16px; }
+  .stack { display: grid; gap: 16px; align-content: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  svg text { font-family: inherit; }
+  #net { width: 100%; height: auto; display: block; }
+
+  .outcomes { display: grid; gap: 12px; }
+  .outcome { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; }
+  .outcome.sel { border-color: var(--accent); }
+  .outcome .head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .outcome .head b { font-weight: 600; }
+  .outcome .head span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .probs { display: flex; height: 22px; border-radius: 6px; overflow: hidden; margin: 8px 0 6px; font-size: 11px; font-weight: 600; }
+  .probs > div { display: flex; align-items: center; justify-content: center; color: #0a0f22; white-space: nowrap; overflow: hidden; }
+  .legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .fan { width: 100%; height: auto; display: block; margin-top: 6px; }
+
+  .tornado-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; margin: 5px 0; }
+  .tornado-row .lbl { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tornado-row .track { position: relative; height: 14px; background: rgba(255,255,255,.04); border-radius: 3px; }
+  .tornado-row .track::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border); }
+  .tornado-row .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+
+  .sliders { display: grid; gap: 6px; max-height: 360px; overflow: auto; padding-right: 4px; }
+  .sl { display: grid; grid-template-columns: minmax(0, 1fr) 110px 34px; gap: 8px; align-items: center; font-size: 12px; }
+  .sl .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sl .lbl small { color: var(--muted); }
+  .sl input { width: 100%; accent-color: var(--accent); }
+  .sl output { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .subhead { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 12px 0 4px; }
+
+  ul.plain { margin: 0; padding-left: 18px; }
+  ul.plain li { margin: 4px 0; }
+  ul.plain li small { color: var(--muted); display: block; }
+  .report { font-size: 14px; }
+  .report p { margin: 6px 0; }
+  .report h4 { margin: 12px 0 4px; font-size: 14px; color: var(--accent); }
+  .muted { color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 24px; text-align: center; }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Szenario Lab</h1>
+    <span class="tag">Gesellschaftliche „Was wäre wenn?“-Simulation · lokales 8B-LLM + Monte Carlo</span>
+    <a class="back" href="../../">← Übersicht</a>
+  </header>
+
+  <section class="card">
+    <h2>Dein Szenario</h2>
+    <textarea id="prompt" placeholder="z. B. „Österreich führt 2027 verpflichtend die 4-Tage-Woche bei vollem Lohn ein.“"></textarea>
+    <div class="controls">
+      <button class="primary" id="run">Simulieren</button>
+      <select id="model" title="Lokales Sprachmodell (läuft per WebGPU im Browser)">
+        <option value="Qwen3-8B-q4f16_1-MLC">Qwen3 8B · ca. 5 GB · bestes Deutsch</option>
+        <option value="Llama-3.1-8B-Instruct-q4f16_1-MLC">Llama 3.1 8B · ca. 4,6 GB</option>
+        <option value="Qwen3-4B-q4f16_1-MLC">Qwen3 4B · ca. 2,5 GB · für schwächere GPUs</option>
+      </select>
+      <span class="muted" id="gpuInfo" style="font-size:12px"></span>
+    </div>
+    <div class="examples">Ohne Download ausprobieren:
+      <span id="exampleBtns"></span>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="bar" id="bar"><i></i></div>
+    <pre class="stream" id="stream"></pre>
+    <details>
+      <summary>Prompts anzeigen</summary>
+      <pre id="promptView"></pre>
+    </details>
+  </section>
+
+  <section id="results">
+    <div class="card title-row">
+      <h2 class="big" id="rTitle"></h2>
+      <p id="rSummary"></p>
+    </div>
+
+    <div class="grid">
+      <div class="stack">
+        <div class="card">
+          <h2>Kausalnetz <span class="pill" id="netInfo"></span></h2>
+          <svg id="net" viewBox="0 0 560 380" role="img" aria-label="Kausalnetz der Faktoren"></svg>
+          <div class="legend" style="margin-top:6px">
+            <span><i style="background:var(--pos)"></i>verstärkt</span>
+            <span><i style="background:var(--neg)"></i>bremst</span>
+            <span>Zahl am Knoten = Median-Veränderung nach 24 Monaten</span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Annahmen ändern</h2>
+          <div class="muted" style="font-size:12px">Die Simulation läuft sofort neu, so siehst du, welche Annahme etwas kippt.</div>
+          <div class="subhead">Direkter Schock durch das Szenario</div>
+          <div class="sliders" id="shockSliders"></div>
+          <div class="subhead">Wirkungsstärken</div>
+          <div class="sliders" id="linkSliders"></div>
+        </div>
+        <div class="card">
+          <h2>Akteure</h2>
+          <ul class="plain" id="actors"></ul>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h2>Ergebnisse · 2.000 simulierte Verläufe über 24 Monate</h2>
+          <div class="legend" style="margin-bottom:8px">
+            <span><i style="background:var(--up)"></i>steigt deutlich</span>
+            <span><i style="background:#56607f"></i>bleibt etwa gleich</span>
+            <span><i style="background:var(--down)"></i>sinkt deutlich</span>
+            <span>Band = 10–90 %, Linie = wahrscheinlichster Verlauf</span>
+          </div>
+          <div class="outcomes" id="outcomes"></div>
+        </div>
+        <div class="card">
+          <h2>Wichtigste Hebel für <span id="tornadoFor" style="color:var(--text)"></span></h2>
+          <div class="muted" style="font-size:12px;margin-bottom:6px">Korrelation der Unsicherheiten mit dem Ergebnis: Diese Annahmen entscheiden am meisten.</div>
+          <div id="tornado"></div>
+        </div>
+        <div class="card">
+          <h2>Lagebericht <span class="pill">vom LLM, auf Basis der Simulationszahlen</span></h2>
+          <div class="report" id="report"><span class="muted">Wird nach der Simulation geschrieben …</span></div>
+          <div class="controls"><button id="reportBtn">Bericht (neu) schreiben</button></div>
+        </div>
+        <div class="card">
+          <h2>Historische Vergleichsfälle</h2>
+          <ul class="plain" id="analogies"></ul>
+        </div>
+        <div class="card">
+          <h2>Frühindikatoren</h2>
+          <ul class="plain" id="indicators"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">Das ist keine Prognose, sondern ein Denkwerkzeug. Die Struktur stammt von einem kleinen Sprachmodell, die Wahrscheinlichkeiten
+    gelten nur unter dessen Annahmen. Alles läuft lokal in deinem Browser, kein Text verlässt deinen Rechner.</p>
+</div>
+
+<script type="module">
+// ======================= LLM-Setup =======================
+const WEBLLM_URL = 'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.87/+esm';
+
+const SYSTEM_PROMPT = `Du bist ein nüchterner Szenario-Analyst für gesellschaftliche, politische und wirtschaftliche Entwicklungen.
+Du übersetzt ein Szenario in ein kleines kausales Simulationsmodell als JSON.
+
+Felder:
+- "title": kurzer Titel. "summary": 1-2 Sätze, worum es geht.
+- "actors": 3-5 Akteure (Gruppen, Institutionen) mit ihrer Haltung ("stance").
+- "factors": 6-9 messbare Größen.
+  - "id": kurz, klein, snake_case (z.B. "mieten"). "name": deutscher Name.
+  - "kind": "treiber" (wirkt auf andere) oder "ergebnis" (das, was am Ende interessiert). Genau 2-3 Faktoren sind "ergebnis".
+  - "start": heutiges Niveau auf einer Skala 0-100 (50 = normal/durchschnittlich).
+  - "shock": direkte Veränderung durch das Szenario, -40 bis +40; 0 wenn nicht direkt betroffen. Mindestens ein Faktor ist nicht 0.
+  - "uncertainty": 5-25, wie unsicher dieser Faktor ist.
+- "links": 8-14 Ursache-Wirkungs-Beziehungen zwischen ids ("from" wirkt auf "to").
+  - "strength": -3 (stark bremsend) bis +3 (stark verstärkend), nie 0. "why": ein kurzer Satz.
+  - Baue mindestens eine Rückkopplungsschleife ein. Jedes "ergebnis" hat mindestens einen eingehenden Link.
+- "analogies": 2-3 reale historische Vergleichsfälle ("case") und ihre Lehre ("lesson"). Erfinde nichts.
+- "indicators": 3-5 beobachtbare Frühindikatoren, an denen man erkennt, welcher Verlauf eintritt.
+
+Sei realistisch: Gesellschaften reagieren träge, Gegenkräfte existieren. Antworte auf Deutsch, nur mit JSON.`;
+
+const REPORT_PROMPT = `Du bist ein Analyst. Schreibe auf Deutsch einen knappen Lagebericht (max. 180 Wörter) mit genau diesen drei Abschnitten:
+### Wahrscheinlichster Verlauf
+### Was es kippen könnte
+### Worauf man achten sollte
+Verwende NUR die Zahlen und Fakten aus den Simulationsdaten, erfinde keine neuen Zahlen. Nenne Wahrscheinlichkeiten in Prozent.`;
+
+const SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    summary: { type: 'string' },
+    actors: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, stance: { type: 'string' } }, required: ['name', 'stance'] } },
+    factors: { type: 'array', items: { type: 'object', properties: {
+      id: { type: 'string' }, name: { type: 'string' }, kind: { type: 'string', enum: ['treiber', 'ergebnis'] },
+      start: { type: 'integer' }, shock: { type: 'integer' }, uncertainty: { type: 'integer' } },
+      required: ['id', 'name', 'kind', 'start', 'shock', 'uncertainty'] } },
+    links: { type: 'array', items: { type: 'object', properties: {
+      from: { type: 'string' }, to: { type: 'string' }, strength: { type: 'integer' }, why: { type: 'string' } },
+      required: ['from', 'to', 'strength', 'why'] } },
+    analogies: { type: 'array', items: { type: 'object', properties: { case: { type: 'string' }, lesson: { type: 'string' } }, required: ['case', 'lesson'] } },
+    indicators: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['title', 'summary', 'actors', 'factors', 'links', 'analogies', 'indicators'],
+};
+
+document.getElementById('promptView').textContent =
+  '── 1) System-Prompt: Modell bauen (JSON-Schema-erzwungen) ──\n' + SYSTEM_PROMPT +
+  '\n\nUser: Szenario: <dein Text>\n\n── 2) System-Prompt: Lagebericht ──\n' + REPORT_PROMPT +
+  '\n\nUser: <Szenario + Simulationsergebnisse als Zahlen>';
+
+let webllm = null, engine = null, loadedModel = null, busy = false;
+
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), barEl = $('bar'), streamEl = $('stream');
+function setStatus(t, err = false) { statusEl.textContent = t; statusEl.classList.toggle('err', err); }
+function setBar(p) { barEl.style.display = p == null ? 'none' : 'block'; if (p != null) barEl.firstElementChild.style.width = (p * 100).toFixed(1) + '%'; }
+
+if (!('gpu' in navigator)) {
+  $('gpuInfo').textContent = '⚠ Kein WebGPU – nur die Beispiele funktionieren (Chrome/Edge am Desktop empfohlen).';
+}
+
+async function ensureEngine() {
+  const modelId = $('model').value;
+  if (engine && loadedModel === modelId) return engine;
+  if (!('gpu' in navigator)) throw new Error('Dein Browser unterstützt kein WebGPU. Probier Chrome oder Edge am Desktop oder lade ein Beispiel.');
+  setStatus('Lade WebLLM …'); setBar(0);
+  if (!webllm) webllm = await import(WEBLLM_URL);
+  const initProgressCallback = r => { setStatus(r.text); setBar(r.progress); };
+  if (engine) {
+    await engine.reload(modelId);
+  } else {
+    try {
+      const src = `import { WebWorkerMLCEngineHandler } from "${WEBLLM_URL}";
+        const h = new WebWorkerMLCEngineHandler(); self.onmessage = m => h.onmessage(m);`;
+      const worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), { type: 'module' });
+      engine = await webllm.CreateWebWorkerMLCEngine(worker, modelId, { initProgressCallback });
+    } catch (e) {
+      console.warn('Worker fehlgeschlagen, nutze Main-Thread', e);
+      engine = await webllm.CreateMLCEngine(modelId, { initProgressCallback });
+    }
+  }
+  loadedModel = modelId;
+  setBar(null);
+  return engine;
+}
+
+const extraBody = () => loadedModel.startsWith('Qwen3') ? { enable_thinking: false } : undefined;
+
+async function llmBuildModel(scenario) {
+  const eng = await ensureEngine();
+  setStatus('Das Modell analysiert das Szenario …'); setBar(null);
+  streamEl.style.display = 'block'; streamEl.textContent = '';
+  const chunks = await eng.chat.completions.create({
+    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: 'Szenario: ' + scenario }],
+    temperature: 0.4, max_tokens: 2400, stream: true,
+    response_format: { type: 'json_object', schema: JSON.stringify(SCHEMA) },
+    extra_body: extraBody(),
+  });
+  let text = '', n = 0;
+  for await (const c of chunks) {
+    text += c.choices[0]?.delta?.content || '';
+    if (++n % 4 === 0) { streamEl.textContent = text; streamEl.scrollTop = streamEl.scrollHeight; setStatus(`Das Modell schreibt das Kausalmodell … ${n} Tokens`); }
+  }
+  streamEl.textContent = text;
+  const s = text.indexOf('{'), e = text.lastIndexOf('}');
+  if (s < 0 || e < 0) throw new Error('Keine JSON-Antwort erhalten.');
+  try { return JSON.parse(text.slice(s, e + 1)); }
+  catch { throw new Error('Die Antwort war unvollständig (Kontext zu knapp?). Formulier das Szenario kürzer und versuch es nochmal.'); }
+}
+
+// ======================= Modell normalisieren =======================
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : (isFinite(parseFloat(v)) ? parseFloat(v) : d);
+const slug = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+function normalize(raw) {
+  const m = { title: String(raw.title || 'Szenario'), summary: String(raw.summary || ''), actors: [], factors: [], links: [], analogies: [], indicators: [] };
+  const seen = new Set(), byKey = new Map();
+  for (const f of (Array.isArray(raw.factors) ? raw.factors : []).slice(0, 12)) {
+    if (!f || (!f.id && !f.name)) continue;
+    let id = slug(f.id || f.name) || 'f' + m.factors.length;
+    while (seen.has(id)) id += '_2';
+    seen.add(id);
+    const nf = { id, name: String(f.name || f.id), kind: f.kind === 'ergebnis' ? 'ergebnis' : 'treiber',
+      start: clamp(Math.round(num(f.start, 50)), 0, 100), shock: clamp(Math.round(num(f.shock, 0)), -50, 50),
+      uncertainty: clamp(Math.round(num(f.uncertainty, 10)), 3, 30) };
+    m.factors.push(nf);
+    byKey.set(id, id); byKey.set(slug(f.id), id); byKey.set(slug(f.name), id);
+  }
+  if (m.factors.length < 2) throw new Error('Das Modell hat zu wenige Faktoren geliefert. Bitte nochmal versuchen.');
+  if (!m.factors.some(f => f.kind === 'ergebnis')) m.factors.slice(-2).forEach(f => f.kind = 'ergebnis');
+  const pairs = new Set();
+  for (const l of (Array.isArray(raw.links) ? raw.links : [])) {
+    const a = byKey.get(slug(l?.from)), b = byKey.get(slug(l?.to));
+    if (!a || !b || a === b || pairs.has(a + '>' + b)) continue;
+    let s = clamp(Math.round(num(l.strength, 0)), -3, 3);
+    if (s === 0) continue;
+    pairs.add(a + '>' + b);
+    m.links.push({ from: a, to: b, strength: s, why: String(l.why || '') });
+  }
+  m.actors = (raw.actors || []).filter(a => a && a.name).slice(0, 6).map(a => ({ name: String(a.name), stance: String(a.stance || '') }));
+  m.analogies = (raw.analogies || []).filter(a => a && a.case).slice(0, 4).map(a => ({ case: String(a.case), lesson: String(a.lesson || '') }));
+  m.indicators = (raw.indicators || []).filter(Boolean).slice(0, 6).map(String);
+  return m;
+}
+
+// ======================= Monte-Carlo-Simulation =======================
+const N_RUNS = 2000, T = 24, COUPLING = 0.025, REVERT = 0.15, CLASS_T = 8;
+
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function simulate(model) {
+  const F = model.factors, n = F.length;
+  const idx = Object.fromEntries(F.map((f, i) => [f.id, i]));
+  const L = model.links.map(l => ({ a: idx[l.from], b: idx[l.to], w: l.strength * COUPLING }));
+  const rand = mulberry32(42);
+  const gauss = () => { let u = 0, v = 0; while (!u) u = rand(); while (!v) v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+
+  const traj = new Float32Array(N_RUNS * (T + 1) * n);
+  // Zufallsinputs je Lauf (für Sensitivität)
+  const inShock = new Float32Array(N_RUNS), inLink = new Float32Array(N_RUNS * L.length), inBase = new Float32Array(N_RUNS * n);
+  const x = new Float64Array(n), base = new Float64Array(n), target = new Float64Array(n), dx = new Float64Array(n);
+
+  for (let r = 0; r < N_RUNS; r++) {
+    const s = 0.4 + rand() * 1.2; inShock[r] = s;
+    for (let k = 0; k < L.length; k++) inLink[r * L.length + k] = 0.4 + rand() * 1.2;
+    for (let i = 0; i < n; i++) {
+      const g = gauss(); inBase[r * n + i] = g;
+      base[i] = clamp(F[i].start + g * F[i].uncertainty * 0.35, 0, 100);
+      target[i] = base[i] + F[i].shock * s;
+      x[i] = base[i];
+    }
+    let o = r * (T + 1) * n;
+    for (let i = 0; i < n; i++) traj[o + i] = x[i] - base[i] + F[i].start;
+    for (let t = 1; t <= T; t++) {
+      for (let i = 0; i < n; i++) dx[i] = REVERT * (target[i] - x[i]) + gauss() * F[i].uncertainty * 0.06;
+      for (let k = 0; k < L.length; k++) { const l = L[k]; dx[l.b] += l.w * inLink[r * L.length + k] * (x[l.a] - base[l.a]); }
+      o += n;
+      for (let i = 0; i < n; i++) { x[i] = clamp(x[i] + dx[i], 0, 100); traj[o + i] = clamp(x[i] - base[i] + F[i].start, 0, 100); }
+    }
+  }
+
+  // Quantile je Faktor und Zeitpunkt
+  const q = [0.1, 0.25, 0.5, 0.75, 0.9];
+  const quant = F.map(() => q.map(() => new Float32Array(T + 1)));
+  const col = new Float32Array(N_RUNS);
+  for (let i = 0; i < n; i++) for (let t = 0; t <= T; t++) {
+    for (let r = 0; r < N_RUNS; r++) col[r] = traj[(r * (T + 1) + t) * n + i];
+    col.sort();
+    q.forEach((p, k) => quant[i][k][t] = col[Math.min(N_RUNS - 1, Math.floor(p * N_RUNS))]);
+  }
+  const final = (r, i) => traj[(r * (T + 1) + T) * n + i];
+
+  // Klassen je Ergebnis
+  const outs = F.map((f, i) => i).filter(i => F[i].kind === 'ergebnis');
+  const classes = {};
+  for (const i of outs) {
+    let up = 0, down = 0;
+    for (let r = 0; r < N_RUNS; r++) { const d = final(r, i) - F[i].start; if (d > CLASS_T) up++; else if (d < -CLASS_T) down++; }
+    classes[i] = { up: up / N_RUNS, down: down / N_RUNS, flat: 1 - (up + down) / N_RUNS };
+  }
+
+  // Wahrscheinlichster Verlauf: Lauf, der allen Ergebnis-Medianen am nächsten ist
+  let best = 0, bestD = Infinity;
+  for (let r = 0; r < N_RUNS; r++) {
+    let d = 0;
+    for (const i of outs) { const iqr = Math.max(2, quant[i][3][T] - quant[i][1][T]); d += ((final(r, i) - quant[i][2][T]) / iqr) ** 2; }
+    if (d < bestD) { bestD = d; best = r; }
+  }
+  const likely = F.map((_, i) => Float32Array.from({ length: T + 1 }, (_, t) => traj[(best * (T + 1) + t) * n + i]));
+
+  // Sensitivität (Pearson) für jedes Ergebnis
+  const corr = (getIn, i) => {
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (let r = 0; r < N_RUNS; r++) { const a = getIn(r), b = final(r, i); sx += a; sy += b; sxx += a * a; syy += b * b; sxy += a * b; }
+    const cov = sxy / N_RUNS - (sx / N_RUNS) * (sy / N_RUNS);
+    const va = sxx / N_RUNS - (sx / N_RUNS) ** 2, vb = syy / N_RUNS - (sy / N_RUNS) ** 2;
+    return va > 1e-9 && vb > 1e-9 ? cov / Math.sqrt(va * vb) : 0;
+  };
+  const sens = {};
+  for (const i of outs) {
+    const list = [{ label: 'Wie stark das Szenario tatsächlich durchschlägt', r: corr(r => inShock[r], i) }];
+    model.links.forEach((l, k) => list.push({ label: `${nameOf(model, l.from)} → ${nameOf(model, l.to)}`, r: corr(r => inLink[r * L.length + k], i) }));
+    F.forEach((f, j) => list.push({ label: `Ausgangsniveau: ${f.name}`, r: corr(r => inBase[r * n + j], i) }));
+    sens[i] = list.filter(e => Math.abs(e.r) > 0.03).sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 7);
+  }
+  return { quant, classes, likely, sens, outs };
+}
+const nameOf = (m, id) => (m.factors.find(f => f.id === id) || { name: id }).name;
+
+// ======================= Rendering =======================
+let MODEL = null, SIM = null, selOut = null, SCENARIO = '';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sgn = v => (v > 0 ? '+' : '') + Math.round(v);
+
+function showModel(model, scenario) {
+  MODEL = model; SCENARIO = scenario;
+  selOut = null;
+  $('results').style.display = 'block';
+  $('rTitle').textContent = model.title;
+  $('rSummary').textContent = model.summary;
+  $('actors').innerHTML = model.actors.map(a => `<li><b>${esc(a.name)}</b><small>${esc(a.stance)}</small></li>`).join('') || '<li class="muted">–</li>';
+  $('analogies').innerHTML = model.analogies.map(a => `<li><b>${esc(a.case)}</b><small>${esc(a.lesson)}</small></li>`).join('') || '<li class="muted">–</li>';
+  $('indicators').innerHTML = model.indicators.map(t => `<li>${esc(t)}</li>`).join('') || '<li class="muted">–</li>';
+  buildSliders();
+  rerun();
+}
+
+function rerun() {
+  SIM = simulate(MODEL);
+  if (selOut == null || !SIM.outs.includes(selOut)) selOut = SIM.outs[0];
+  drawNet(); drawOutcomes(); drawTornado();
+}
+
+function buildSliders() {
+  const mk = (label, sub, min, max, val, onInput, fmt = sgn) => {
+    const d = document.createElement('div'); d.className = 'sl';
+    d.innerHTML = `<span class="lbl" title="${esc(label)}">${esc(label)} ${sub ? `<small>${esc(sub)}</small>` : ''}</span><input type="range" min="${min}" max="${max}" step="1" value="${val}"><output>${fmt(val)}</output>`;
+    const inp = d.querySelector('input'), out = d.querySelector('output');
+    let tm; inp.addEventListener('input', () => { out.textContent = fmt(+inp.value); onInput(+inp.value); clearTimeout(tm); tm = setTimeout(rerun, 60); });
+    return d;
+  };
+  const ss = $('shockSliders'); ss.innerHTML = '';
+  MODEL.factors.forEach(f => ss.appendChild(mk(f.name, f.kind === 'ergebnis' ? '· Ergebnis' : '', -50, 50, f.shock, v => f.shock = v)));
+  const ls = $('linkSliders'); ls.innerHTML = '';
+  MODEL.links.forEach(l => {
+    const el = mk(`${nameOf(MODEL, l.from)} → ${nameOf(MODEL, l.to)}`, '', -3, 3, l.strength, v => l.strength = v);
+    el.title = l.why; ls.appendChild(el);
+  });
+  if (!MODEL.links.length) ls.innerHTML = '<span class="muted" style="font-size:12px">Keine Wirkungen im Modell.</span>';
+}
+
+function drawNet() {
+  const svg = $('net'), F = MODEL.factors, n = F.length, W = 560, H = 380, cx = W / 2, cy = H / 2 + 4, R = 132;
+  $('netInfo').textContent = `${n} Faktoren · ${MODEL.links.length} Wirkungen`;
+  const pos = F.map((f, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, a }; });
+  const idx = Object.fromEntries(F.map((f, i) => [f.id, i]));
+  let s = `<defs>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--pos)"/></marker>
+    <marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="var(--neg)"/></marker></defs>`;
+  const NR = 20;
+  for (const l of MODEL.links) {
+    const a = pos[idx[l.from]], b = pos[idx[l.to]];
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    const x1 = a.x + ux * NR, y1 = a.y + uy * NR, x2 = b.x - ux * (NR + 3), y2 = b.y - uy * (NR + 3);
+    const mx = (x1 + x2) / 2 - uy * d * 0.15, my = (y1 + y2) / 2 + ux * d * 0.15; // Kurve, damit Hin- und Rückweg getrennt sind
+    const pos_ = l.strength > 0;
+    s += `<path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none" stroke="var(${pos_ ? '--pos' : '--neg'})" stroke-opacity="${0.35 + Math.abs(l.strength) * 0.15}"
+      stroke-width="${0.8 + Math.abs(l.strength) * 0.7}" marker-end="url(#${pos_ ? 'ap' : 'an'})"><title>${esc(l.why)}</title></path>`;
+  }
+  F.forEach((f, i) => {
+    const p = pos[i], change = SIM.quant[i][2][T] - f.start;
+    const t = clamp(Math.abs(change) / 25, 0, 1);
+    const fill = change > 0 ? `rgba(92,200,255,${0.15 + t * 0.6})` : `rgba(255,159,92,${0.15 + t * 0.6})`;
+    const out = f.kind === 'ergebnis';
+    s += `<g style="cursor:${out ? 'pointer' : 'default'}" data-i="${i}">
+      <circle cx="${p.x}" cy="${p.y}" r="${NR}" fill="${fill}" stroke="${out ? 'var(--accent)' : 'rgba(255,255,255,.25)'}" stroke-width="${out ? (i === selOut ? 3 : 2) : 1}"/>
+      <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)">${sgn(change)}</text>`;
+    const lx = cx + Math.cos(p.a) * (R + NR + 8), ly = cy + Math.sin(p.a) * (R + NR + 8) + 4;
+    const anchor = Math.abs(Math.cos(p.a)) < 0.3 ? 'middle' : (Math.cos(p.a) > 0 ? 'start' : 'end');
+    const name = f.name.length > 26 ? f.name.slice(0, 25) + '…' : f.name;
+    s += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" font-size="11" fill="${out ? 'var(--accent)' : 'var(--muted)'}">${esc(name)}</text></g>`;
+  });
+  svg.innerHTML = s;
+  svg.querySelectorAll('g[data-i]').forEach(g => g.addEventListener('click', () => {
+    const i = +g.dataset.i; if (MODEL.factors[i].kind === 'ergebnis') { selOut = i; drawNet(); drawOutcomes(); drawTornado(); }
+  }));
+}
+
+function fanSvg(i) {
+  const W = 480, H = 130, P = { l: 26, r: 6, t: 6, b: 16 };
+  const Q = SIM.quant[i], start = MODEL.factors[i].start;
+  let lo = Infinity, hi = -Infinity;
+  for (let t = 0; t <= T; t++) { lo = Math.min(lo, Q[0][t], start); hi = Math.max(hi, Q[4][t], start); }
+  lo = Math.max(0, Math.floor((lo - 4) / 10) * 10); hi = Math.min(100, Math.ceil((hi + 4) / 10) * 10);
+  if (hi - lo < 20) { const m = (hi + lo) / 2; lo = Math.max(0, m - 10); hi = Math.min(100, lo + 20); }
+  const X = t => P.l + t / T * (W - P.l - P.r), Y = v => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
+  const band = (a, b) => { let d = ''; for (let t = 0; t <= T; t++) d += (t ? 'L' : 'M') + X(t).toFixed(1) + ',' + Y(Q[b][t]).toFixed(1); for (let t = T; t >= 0; t--) d += 'L' + X(t).toFixed(1) + ',' + Y(Q[a][t]).toFixed(1); return d + 'Z'; };
+  const line = arr => { let d = ''; for (let t = 0; t <= T; t++) d += (t ? 'L' : 'M') + X(t).toFixed(1) + ',' + Y(arr[t]).toFixed(1); return d; };
+  return `<svg class="fan" viewBox="0 0 ${W} ${H}">
+    <text x="${P.l - 4}" y="${Y(hi) + 4}" text-anchor="end" font-size="9" fill="var(--muted)">${hi}</text>
+    <text x="${P.l - 4}" y="${Y(lo)}" text-anchor="end" font-size="9" fill="var(--muted)">${lo}</text>
+    <line x1="${P.l}" x2="${W - P.r}" y1="${Y(start)}" y2="${Y(start)}" stroke="var(--muted)" stroke-dasharray="3 4" stroke-width="1"/>
+    <path d="${band(0, 4)}" fill="var(--accent)" fill-opacity=".14"/>
+    <path d="${band(1, 3)}" fill="var(--accent)" fill-opacity=".22"/>
+    <path d="${line(SIM.likely[i])}" fill="none" stroke="var(--text)" stroke-width="1.8"/>
+    <text x="${P.l}" y="${H - 3}" font-size="9" fill="var(--muted)">heute</text>
+    <text x="${W - P.r}" y="${H - 3}" text-anchor="end" font-size="9" fill="var(--muted)">+24 Monate</text>
+  </svg>`;
+}
+
+function drawOutcomes() {
+  const el = $('outcomes');
+  el.innerHTML = SIM.outs.map(i => {
+    const f = MODEL.factors[i], c = SIM.classes[i], Q = SIM.quant[i];
+    const seg = (p, color, label) => p > 0.005 ? `<div style="width:${p * 100}%;background:${color}" title="${label}: ${Math.round(p * 100)} %">${p > 0.09 ? Math.round(p * 100) + ' %' : ''}</div>` : '';
+    return `<div class="outcome ${i === selOut ? 'sel' : ''}" data-i="${i}">
+      <div class="head"><b>${esc(f.name)}</b><span>heute ${f.start} → Median ${Math.round(Q[2][T])} (80 %: ${Math.round(Q[0][T])}–${Math.round(Q[4][T])})</span></div>
+      <div class="probs">${seg(c.up, 'var(--up)', 'steigt')}${seg(c.flat, '#56607f', 'stabil')}${seg(c.down, 'var(--down)', 'sinkt')}</div>
+      ${fanSvg(i)}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.outcome').forEach(d => d.addEventListener('click', () => { selOut = +d.dataset.i; drawNet(); drawOutcomes(); drawTornado(); }));
+}
+
+function drawTornado() {
+  const i = selOut; $('tornadoFor').textContent = MODEL.factors[i].name;
+  const list = SIM.sens[i];
+  $('tornado').innerHTML = list.length ? list.map(e => {
+    const w = Math.abs(e.r) * 50, left = e.r >= 0 ? 50 : 50 - w;
+    return `<div class="tornado-row"><span class="lbl" title="${esc(e.label)}">${esc(e.label)}</span>
+      <div class="track" title="r = ${e.r.toFixed(2)}"><div class="fill" style="left:${left}%;width:${w}%;background:${e.r >= 0 ? 'var(--up)' : 'var(--down)'}"></div></div></div>`;
+  }).join('') + `<div class="legend" style="margin-top:8px"><span><i style="background:var(--up)"></i>mehr davon → Ergebnis höher</span><span><i style="background:var(--down)"></i>mehr davon → Ergebnis niedriger</span></div>`
+    : '<span class="muted">Keine nennenswerten Hebel gefunden.</span>';
+}
+
+// ======================= Bericht =======================
+function simSummaryText() {
+  const lines = [`Szenario: ${SCENARIO}`, `Modell: ${MODEL.title}. ${MODEL.summary}`, '', 'Simulationsergebnisse nach 24 Monaten (Skala 0-100, 2000 Läufe):'];
+  for (const i of SIM.outs) {
+    const f = MODEL.factors[i], c = SIM.classes[i], Q = SIM.quant[i];
+    lines.push(`- ${f.name}: heute ${f.start}, Median ${Math.round(Q[2][T])}, 80%-Bereich ${Math.round(Q[0][T])}-${Math.round(Q[4][T])}. Steigt deutlich: ${Math.round(c.up * 100)}%, stabil: ${Math.round(c.flat * 100)}%, sinkt deutlich: ${Math.round(c.down * 100)}%.`);
+    lines.push(`  Wichtigste Hebel: ${SIM.sens[i].slice(0, 3).map(e => `${e.label} (${e.r > 0 ? 'erhöht' : 'senkt'})`).join('; ')}`);
+  }
+  const drivers = MODEL.factors.filter(f => f.kind === 'treiber').map(f => `${f.name} ${sgn(SIM.quant[MODEL.factors.indexOf(f)][2][T] - f.start)}`);
+  lines.push('', `Treiber (Median-Veränderung): ${drivers.join(', ')}`);
+  if (MODEL.indicators.length) lines.push(`Frühindikatoren: ${MODEL.indicators.join('; ')}`);
+  return lines.join('\n');
+}
+
+function md(text) {
+  const out = []; let list = false;
+  for (const raw of esc(text).split('\n')) {
+    const line = raw.trim().replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    if (/^#{1,4}\s/.test(line)) { if (list) { out.push('</ul>'); list = false; } out.push(`<h4>${line.replace(/^#+\s*/, '')}</h4>`); }
+    else if (/^([-*•]|\d+\.)\s/.test(line)) { if (!list) { out.push('<ul class="plain">'); list = true; } out.push(`<li>${line.replace(/^([-*•]|\d+\.)\s*/, '')}</li>`); }
+    else if (line) { if (list) { out.push('</ul>'); list = false; } out.push(`<p>${line}</p>`); }
+  }
+  if (list) out.push('</ul>');
+  return out.join('');
+}
+
+async function writeReport() {
+  if (busy) return;
+  const el = $('report');
+  if (!engine && !('gpu' in navigator)) { el.innerHTML = '<span class="muted">Für den Lagebericht braucht es das lokale LLM (WebGPU). Die Zahlen oben sind trotzdem vollständig.</span>'; return; }
+  if (!engine) { el.innerHTML = '<span class="muted">Der Lagebericht wird vom lokalen LLM geschrieben. Klick auf „Bericht schreiben“, um das Modell zu laden (einmaliger Download).</span>'; return; }
+  busy = true; $('reportBtn').disabled = true; $('run').disabled = true;
+  try {
+    el.innerHTML = '<span class="muted">Schreibe …</span>';
+    const chunks = await engine.chat.completions.create({
+      messages: [{ role: 'system', content: REPORT_PROMPT }, { role: 'user', content: simSummaryText() }],
+      temperature: 0.5, max_tokens: 500, stream: true, extra_body: extraBody(),
+    });
+    let text = '';
+    for await (const c of chunks) { text += c.choices[0]?.delta?.content || ''; el.innerHTML = md(text.replace(/<think>[\s\S]*?<\/think>/g, '')); }
+  } catch (e) { el.innerHTML = `<span style="color:var(--neg)">${esc(e.message || e)}</span>`; }
+  finally { busy = false; $('reportBtn').disabled = false; $('run').disabled = false; }
+}
+$('reportBtn').addEventListener('click', async () => {
+  if (!engine) { try { $('reportBtn').disabled = true; await ensureEngine(); setStatus('Modell bereit.'); } catch (e) { setStatus(e.message || String(e), true); setBar(null); $('reportBtn').disabled = false; return; } $('reportBtn').disabled = false; }
+  writeReport();
+});
+
+// ======================= Ablauf =======================
+$('run').addEventListener('click', async () => {
+  const scenario = $('prompt').value.trim();
+  if (!scenario) { setStatus('Gib zuerst ein Szenario ein.', true); $('prompt').focus(); return; }
+  if (busy) return;
+  busy = true; $('run').disabled = true;
+  try {
+    const raw = await llmBuildModel(scenario);
+    const model = normalize(raw);
+    streamEl.style.display = 'none';
+    setStatus(`Fertig: ${model.factors.length} Faktoren, ${model.links.length} Wirkungen, ${N_RUNS} Simulationsläufe.`);
+    showModel(model, scenario);
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    busy = false; await writeReport();
+  } catch (e) {
+    console.error(e); setStatus(e.message || String(e), true); setBar(null);
+  } finally { busy = false; $('run').disabled = false; }
+});
+$('prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) $('run').click(); });
+
+// ======================= Beispiele (ohne LLM) =======================
+const EXAMPLES = {
+  'Vier-Tage-Woche': {
+    prompt: 'Österreich führt 2027 verpflichtend die 4-Tage-Woche (32 Stunden) bei vollem Lohn ein.',
+    model: {
+      title: 'Verpflichtende 4-Tage-Woche bei vollem Lohn',
+      summary: 'Die gesetzliche Normalarbeitszeit sinkt auf 32 Stunden ohne Lohnverlust. Entscheidend ist, ob Produktivitätsgewinne die höheren Stundenkosten ausgleichen.',
+      actors: [
+        { name: 'Gewerkschaften', stance: 'Dafür: mehr Freizeit, weniger Burnout, Fachkräfte binden.' },
+        { name: 'Wirtschaftskammer / Industrie', stance: 'Dagegen: Kostenschock, Wettbewerbsnachteil im Export.' },
+        { name: 'Beschäftigte', stance: 'Mehrheitlich dafür, Sorge um Arbeitsverdichtung.' },
+        { name: 'Pflege & Gesundheit', stance: 'Gespalten: attraktiver, aber Personalmangel verschärft sich kurzfristig.' },
+      ],
+      factors: [
+        { id: 'arbeitszeit', name: 'Gesetzliche Arbeitszeit', kind: 'treiber', start: 55, shock: -30, uncertainty: 5 },
+        { id: 'lohnstueckkosten', name: 'Lohnstückkosten', kind: 'treiber', start: 55, shock: 15, uncertainty: 12 },
+        { id: 'produktivitaet', name: 'Produktivität pro Stunde', kind: 'treiber', start: 50, shock: 10, uncertainty: 15 },
+        { id: 'fachkraeftemangel', name: 'Fachkräftemangel', kind: 'treiber', start: 65, shock: 8, uncertainty: 12 },
+        { id: 'gesundheit', name: 'Gesundheit der Beschäftigten', kind: 'treiber', start: 48, shock: 8, uncertainty: 10 },
+        { id: 'export', name: 'Exportwettbewerbsfähigkeit', kind: 'treiber', start: 55, shock: -5, uncertainty: 12 },
+        { id: 'beschaeftigung', name: 'Beschäftigung', kind: 'ergebnis', start: 60, shock: 0, uncertainty: 8 },
+        { id: 'zufriedenheit', name: 'Lebenszufriedenheit', kind: 'ergebnis', start: 55, shock: 6, uncertainty: 10 },
+        { id: 'preise', name: 'Preisniveau', kind: 'ergebnis', start: 55, shock: 0, uncertainty: 10 },
+      ],
+      links: [
+        { from: 'arbeitszeit', to: 'lohnstueckkosten', strength: -2, why: 'Weniger Stunden bei gleichem Lohn erhöhen die Kosten pro Stunde.' },
+        { from: 'arbeitszeit', to: 'gesundheit', strength: -2, why: 'Kürzere Arbeitszeit senkt Erschöpfung und Krankenstände.' },
+        { from: 'gesundheit', to: 'produktivitaet', strength: 2, why: 'Ausgeruhte Beschäftigte arbeiten pro Stunde produktiver.' },
+        { from: 'produktivitaet', to: 'lohnstueckkosten', strength: -3, why: 'Höhere Stundenproduktivität gleicht Kosten aus.' },
+        { from: 'lohnstueckkosten', to: 'preise', strength: 2, why: 'Unternehmen geben Kosten an Kundinnen und Kunden weiter.' },
+        { from: 'lohnstueckkosten', to: 'export', strength: -2, why: 'Teurere Produktion schwächt die Position im Ausland.' },
+        { from: 'export', to: 'beschaeftigung', strength: 2, why: 'Exportindustrie sichert viele Arbeitsplätze.' },
+        { from: 'arbeitszeit', to: 'fachkraeftemangel', strength: -2, why: 'Weniger Stunden pro Kopf vergrößern die Lücke kurzfristig.' },
+        { from: 'fachkraeftemangel', to: 'beschaeftigung', strength: 1, why: 'Betriebe stellen zusätzliches Personal ein, wo es verfügbar ist.' },
+        { from: 'gesundheit', to: 'zufriedenheit', strength: 2, why: 'Mehr Erholung steigert das Wohlbefinden.' },
+        { from: 'preise', to: 'zufriedenheit', strength: -2, why: 'Steigende Preise drücken die Kaufkraft und Stimmung.' },
+        { from: 'beschaeftigung', to: 'zufriedenheit', strength: 1, why: 'Sichere Jobs stützen die Lebenszufriedenheit.' },
+        { from: 'zufriedenheit', to: 'fachkraeftemangel', strength: -1, why: 'Attraktive Arbeitsbedingungen ziehen Fachkräfte aus dem Ausland an.' },
+      ],
+      analogies: [
+        { case: 'Frankreich: 35-Stunden-Woche (2000)', lesson: 'Beschäftigungseffekt kleiner als erhofft, Produktivität stieg, Flexibilisierung folgte.' },
+        { case: 'Island: Pilotprojekte im öffentlichen Dienst (2015–2019)', lesson: 'Produktivität blieb gleich oder stieg, Wohlbefinden deutlich höher.' },
+        { case: 'UK: 4-Tage-Woche-Pilot (2022)', lesson: 'Die meisten Firmen blieben dabei, aber Teilnahme war freiwillig, also positive Selektion.' },
+      ],
+      indicators: ['Krankenstandstage pro Kopf', 'Lohnstückkosten im Vergleich zu Deutschland', 'Offene Stellen in Pflege und Gastronomie', 'Exportaufträge der Industrie'],
+    },
+  },
+  'Mietendeckel Wien': {
+    prompt: 'Wien friert alle privaten Mieten für 5 Jahre auf dem heutigen Niveau ein.',
+    model: {
+      title: 'Fünfjähriger Mietenstopp in Wien',
+      summary: 'Private Bestandsmieten werden eingefroren. Kurzfristig entlastet das Mieter, langfristig hängt alles am Neubau und am Verhalten der Vermieter.',
+      actors: [
+        { name: 'Mieterinnen und Mieter', stance: 'Stark dafür, sofortige Entlastung.' },
+        { name: 'Private Vermieter', stance: 'Dagegen, drohen mit Verkauf oder Leerstand.' },
+        { name: 'Bauträger & Investoren', stance: 'Halten Projekte zurück, bis Rechtssicherheit besteht.' },
+        { name: 'Gemeinde / Gemeindebau', stance: 'Dafür, muss aber eigenen Neubau beschleunigen.' },
+      ],
+      factors: [
+        { id: 'mieten', name: 'Mieten im Bestand', kind: 'treiber', start: 65, shock: -25, uncertainty: 6 },
+        { id: 'rendite', name: 'Rendite für Vermieter', kind: 'treiber', start: 50, shock: -20, uncertainty: 10 },
+        { id: 'neubau', name: 'Privater Neubau', kind: 'treiber', start: 50, shock: -8, uncertainty: 15 },
+        { id: 'umwandlung', name: 'Umwandlung in Eigentum', kind: 'treiber', start: 40, shock: 10, uncertainty: 15 },
+        { id: 'sanierung', name: 'Sanierungen', kind: 'treiber', start: 50, shock: -5, uncertainty: 12 },
+        { id: 'angebot', name: 'Angebot an Mietwohnungen', kind: 'ergebnis', start: 45, shock: 0, uncertainty: 10 },
+        { id: 'leistbarkeit', name: 'Leistbarkeit für Mieter', kind: 'ergebnis', start: 40, shock: 15, uncertainty: 10 },
+        { id: 'zugang', name: 'Chancen für Wohnungssuchende', kind: 'ergebnis', start: 40, shock: 0, uncertainty: 12 },
+      ],
+      links: [
+        { from: 'mieten', to: 'rendite', strength: 3, why: 'Eingefrorene Mieten senken die Erträge.' },
+        { from: 'mieten', to: 'leistbarkeit', strength: -3, why: 'Niedrigere Mieten entlasten direkt.' },
+        { from: 'rendite', to: 'neubau', strength: 2, why: 'Weniger Rendite macht Neubau unattraktiver.' },
+        { from: 'rendite', to: 'umwandlung', strength: -2, why: 'Bei schlechter Rendite verkaufen Vermieter lieber als Eigentum.' },
+        { from: 'rendite', to: 'sanierung', strength: 2, why: 'Ohne Ertrag wird weniger investiert.' },
+        { from: 'neubau', to: 'angebot', strength: 3, why: 'Neubau ist die Hauptquelle neuen Angebots.' },
+        { from: 'umwandlung', to: 'angebot', strength: -2, why: 'Umgewandelte Wohnungen fehlen am Mietmarkt.' },
+        { from: 'angebot', to: 'zugang', strength: 3, why: 'Mehr freie Wohnungen = leichter etwas zu finden.' },
+        { from: 'leistbarkeit', to: 'angebot', strength: -1, why: 'Wer günstig wohnt, zieht seltener um, weniger Fluktuation.' },
+        { from: 'angebot', to: 'mieten', strength: -1, why: 'Knappes Angebot erzeugt Druck auf Umgehungen (Ablösen, Möblierung).' },
+        { from: 'sanierung', to: 'angebot', strength: 1, why: 'Unsanierte Wohnungen fallen eher aus dem Markt.' },
+      ],
+      analogies: [
+        { case: 'Berliner Mietendeckel (2020–2021)', lesson: 'Mieten sanken, Inserate brachen ein; vom Verfassungsgericht gekippt.' },
+        { case: 'San Francisco: Ausweitung der Mietpreisbindung (1994)', lesson: 'Mieter blieben länger, Angebot sank durch Umwandlungen um rund 15 %.' },
+        { case: 'Wiener Gemeindebau', lesson: 'Dauerhaft leistbares Wohnen funktioniert, wenn die öffentliche Hand selbst baut.' },
+      ],
+      indicators: ['Anzahl Mietinserate auf Plattformen', 'Baugenehmigungen privater Bauträger', 'Parifizierungen / Wohnungsverkäufe', 'Ablösen und befristete Möblierungsangebote'],
+    },
+  },
+};
+const exBtns = $('exampleBtns');
+for (const [name, ex] of Object.entries(EXAMPLES)) {
+  const b = document.createElement('button'); b.textContent = name;
+  b.addEventListener('click', () => {
+    $('prompt').value = ex.prompt;
+    streamEl.style.display = 'none';
+    setStatus('Beispielmodell geladen (vorgefertigt, ohne LLM). Für eigene Szenarien: Text eingeben und „Simulieren“.');
+    showModel(normalize(JSON.parse(JSON.stringify(ex.model))), ex.prompt);
+    writeReport();
+  });
+  exBtns.appendChild(b);
+}
+</script>
+</body>
+</html>
